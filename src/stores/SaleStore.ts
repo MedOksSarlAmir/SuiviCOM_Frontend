@@ -1,113 +1,106 @@
 import { create } from "zustand";
 import api from "@/services/api";
+import { toast } from "sonner";
 
-export interface SaleProduct {
-  product_id: number;
-  designation: string; // Product name
-  quantity: number;
+export interface CategoryWithFormats {
+  id: number;
+  name: string;
+  formats: string[];
 }
 
-export interface Sale {
-  id: number;
-  date: string;
-  distributeur_id: number;
-  distributeur_nom: string;
-  vendeur_id: number;
-  vendeur_nom: string;
-  vendeur_prenom: string;
-  status: string;
-  products: any; // Will be parsed from JSON string
+export interface WeeklyProduct {
+  product_id: number;
+  designation: string;
+  code: string;
+  active: boolean;
+  days: number[]; // Qty for Sat -> Thu
 }
 
 interface SalesState {
-  sales: Sale[];
-  products: any[];
-  distributors: any[];
-  vendorsCache: Record<number, any[]>;
-  currentVendors: any[];
+  // Matrix Data
+  weeklyData: WeeklyProduct[];
+  weeklyDates: string[];
+  weeklyStatuses: Record<string, string>; // date string -> status
+  isSavingCell: Record<string, boolean>; // key: "productId-date"
+
+  // Metadata/Pagination
   total: number;
-  page: number;
-  limit: number;
   isLoading: boolean;
+
+  // Dependencies for filters
+  distributors: any[];
+  currentVendors: any[];
+  categories: CategoryWithFormats[];
+  productTypes: any[];
+  vendorsCache: Record<number, any[]>;
   isDependenciesLoaded: boolean;
-  isLoadingDeps: boolean;
-  filters: {
-    startDate?: string;
-    endDate?: string;
-    search?: string;
-    status?: string;
-    distributeur_id?: string;
-  };
-  setLimit: (limit: number) => void;
-  setFilters: (filters: Partial<SalesState["filters"]>) => void;
-  setPage: (page: number) => void;
-  fetchSales: () => Promise<void>;
+
+  // Actions
   fetchDependencies: () => Promise<void>;
-  fetchVendorsByDistributor: (distributorId: number) => Promise<void>;
-  createSale: (data: any) => Promise<boolean>;
-  updateSale: (id: number, data: any) => Promise<boolean>;
-  deleteSale: (id: number) => Promise<void>;
-  resetSales: () => void;
+  fetchVendorsByDistributor: (id: number) => Promise<void>;
+  fetchWeeklyMatrix: (params: {
+    start_date: string;
+    vendor_id: string;
+    distributor_id: string;
+    product_type?: string;
+    category?: string;
+    format?: string;
+    search?: string;
+    page?: number;
+  }) => Promise<void>;
+
+  upsertSaleItem: (payload: {
+    vendor_id: number;
+    distributor_id: number;
+    product_id: number;
+    date: string;
+    quantity: number;
+  }) => Promise<void>;
+
+  updateSaleStatus: (payload: {
+    vendor_id: number;
+    distributor_id: number;
+    date: string;
+    status: string;
+  }) => Promise<void>;
+
   reset: () => void;
 }
 
 const INITIAL_STATE = {
-  sales: [],
-  products: [],
-  distributors: [],
-  vendorsCache: {},
-  currentVendors: [],
+  weeklyData: [],
+  weeklyDates: [],
+  weeklyStatuses: {},
+  isSavingCell: {},
   total: 0,
-  page: 1,
-  limit: 20,
   isLoading: false,
+  distributors: [],
+  currentVendors: [],
+  categories: [],
+  productTypes: [],
+  vendorsCache: {},
   isDependenciesLoaded: false,
-  filters: {},
-  isLoadingDeps: false,
 };
 
 export const useSalesStore = create<SalesState>((set, get) => ({
   ...INITIAL_STATE,
 
-  resetSales: () =>
-    set({
-      sales: [],
-      total: 0,
-      page: 1,
-      isLoading: false,
-    }),
-
-  setLimit: (limit) => {
-    set({ limit, page: 1 });
-    get().fetchSales();
-  },
-  setPage: (page) => {
-    set({ page });
-    get().fetchSales();
-  },
-  setFilters: (newFilters) => {
-    set((state) => ({ filters: { ...state.filters, ...newFilters }, page: 1 }));
-    get().fetchSales();
-  },
-
   fetchDependencies: async () => {
-    const { isDependenciesLoaded, isLoadingDeps } = get();
-    if (isDependenciesLoaded || isLoadingDeps) return;
-
-    set({ isLoadingDeps: true }); // Prevent double-firing
+    if (get().isDependenciesLoaded) return;
     try {
-      const [pRes, dRes] = await Promise.all([
-        api.get("/supervisor/products"),
+      const [dRes, cRes, tRes] = await Promise.all([
         api.get("/supervisor/distributors"),
+        api.get("/supervisor/categories-with-formats"),
+        api.get("/supervisor/types"),
       ]);
       set({
-        products: pRes.data,
         distributors: dRes.data,
+        categories: cRes.data,
+        productTypes: tRes.data,
         isDependenciesLoaded: true,
-        isLoadingDeps: false,
       });
     } catch (err) {
-      set({ isLoadingDeps: false });
+      console.error("Error loading sales dependencies:", err);
     }
   },
 
@@ -127,57 +120,102 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     }
   },
 
-  fetchSales: async () => {
+  fetchWeeklyMatrix: async (params) => {
     set({ isLoading: true });
-    const { page, limit, filters } = get();
     try {
-      const res = await api.get("/sales", {
-        params: {
-          page,
-          pageSize: limit, // Explicitly match Python kwarg
-          search: filters.search,
-          status: filters.status,
-          startDate: filters.startDate,
-          endDate: filters.endDate,
-          distributeur_id:
-            filters.distributeur_id === "all"
-              ? undefined
-              : filters.distributeur_id,
-        },
+      const res = await api.get("/sales/weekly-matrix", {
+        params: { ...params, pageSize: 25 },
       });
-      set({ sales: res.data.data, total: res.data.total, isLoading: false });
+      set({
+        weeklyData: res.data.data,
+        weeklyDates: res.data.dates,
+        weeklyStatuses: res.data.statuses || {},
+        total: res.data.total,
+        isLoading: false,
+      });
     } catch (err) {
-      set({ isLoading: false, sales: [] });
+      set({ isLoading: false, weeklyData: [] });
     }
   },
 
-  createSale: async (data) => {
+  upsertSaleItem: async (payload) => {
+    const { product_id, date } = payload;
+    const cellKey = `${product_id}-${date}`;
+
+    set((state) => ({
+      isSavingCell: { ...state.isSavingCell, [cellKey]: true },
+    }));
+
     try {
-      await api.post("/sales", data);
-      get().fetchSales();
-      return true;
-    } catch (err) {
-      return false;
+      await api.post("/sales/upsert-item", payload);
+
+      const { weeklyData, weeklyDates, weeklyStatuses } = get();
+      const dayIdx = weeklyDates.indexOf(date);
+
+      if (dayIdx !== -1) {
+        const newData = weeklyData.map((p) => {
+          if (p.product_id === product_id) {
+            const newDays = [...p.days];
+            newDays[dayIdx] = payload.quantity;
+            return { ...p, days: newDays };
+          }
+          return p;
+        });
+
+        const newStatuses = { ...weeklyStatuses };
+        if (!newStatuses[date]) {
+          newStatuses[date] = "complete";
+        }
+
+        set({ weeklyData: newData, weeklyStatuses: newStatuses });
+      }
+
+      // SUCCESS TOAST
+      toast.success("Donnée enregistrée", {
+        description: `Quantité mise à jour pour le ${new Date(date).toLocaleDateString("fr-FR")}`,
+        duration: 2000,
+      });
+    } catch (err: any) {
+      console.error("Failed to upsert item:", err);
+      toast.error("Erreur d'enregistrement", {
+        description:
+          err.response?.data?.message ||
+          "Impossible de communiquer avec le serveur",
+      });
+    } finally {
+      set((state) => ({
+        isSavingCell: { ...state.isSavingCell, [cellKey]: false },
+      }));
     }
   },
 
-  updateSale: async (id, data) => {
+  updateSaleStatus: async (payload) => {
+    const { date, status } = payload;
     try {
-      await api.put(`/sales/${id}`, data);
-      get().fetchSales();
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
+      await api.post("/sales/update-status", payload);
 
-  deleteSale: async (id) => {
-    try {
-      await api.delete(`/sales/${id}`);
-      get().fetchSales();
-    } catch (err) {
-      console.error(err);
+      set((state) => ({
+        weeklyStatuses: { ...state.weeklyStatuses, [date]: status },
+      }));
+
+      // SUCCESS TOAST
+      toast.success("Statut mis à jour", {
+        description: `La vente du ${new Date(date).toLocaleDateString("fr-FR")} est désormais ${status}`,
+      });
+    } catch (err: any) {
+      console.error("Error updating sale status:", err);
+      toast.error("Erreur de modification", {
+        description: "Le changement de statut a échoué.",
+      });
     }
   },
-  reset: () => set(INITIAL_STATE),
+  reset: () =>
+    set({
+      weeklyData: [],
+      weeklyDates: [],
+      weeklyStatuses: {},
+      isSavingCell: {},
+      total: 0,
+      isLoading: false,
+    }),
 }));
