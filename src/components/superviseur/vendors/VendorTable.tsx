@@ -25,6 +25,7 @@ import {
   UserCheck,
   UserMinus,
 } from "lucide-react";
+import { toast } from "sonner";
 
 const VendorRow = memo(({ vendor, onEdit, onDelete }: any) => (
   <TableRow
@@ -54,7 +55,12 @@ const VendorRow = memo(({ vendor, onEdit, onDelete }: any) => (
         </Badge>
       )}
     </TableCell>
-    <TableCell className="text-right pr-6">
+
+    {/* 
+      FIX 1: stopPropagation on the TableCell acts as a barrier 
+      preventing any click inside here from hitting the TableRow.
+    */}
+    <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon">
@@ -62,12 +68,16 @@ const VendorRow = memo(({ vendor, onEdit, onDelete }: any) => (
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onEdit(vendor)}>
+          <DropdownMenuItem
+            // FIX 2: Use onSelect for Radix Menu Items
+            onSelect={() => onEdit(vendor)}
+          >
             <Edit className="w-4 h-4 mr-2" /> Modifier
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-red-600"
-            onClick={() => onDelete(vendor.id, vendor.nom)}
+            // FIX 2: Use onSelect for Radix Menu Items
+            onSelect={() => onDelete(vendor)}
           >
             <Trash2 className="w-4 h-4 mr-2" /> Supprimer
           </DropdownMenuItem>
@@ -81,10 +91,16 @@ VendorRow.displayName = "VendorRow";
 export function VendorTable({ onEdit }: { onEdit: (v: any) => void }) {
   const { vendors, isLoading, deleteVendor } = useVendorStore();
 
-  const handleDelete = async (id: number, name: string) => {
-    if (confirm(`Voulez-vous vraiment supprimer le vendeur ${name} ?`)) {
-      const result = await deleteVendor(id);
-      if (!result.success) alert(result.message);
+  const handleDelete = async (vendor: any) => {
+    if (confirm(`Voulez-vous vraiment supprimer le vendeur ${vendor.nom} ?`)) {
+      const result = await deleteVendor(vendor.id);
+      if (!result.success) {
+        toast.error(result.message);
+        // FIX 3: Removed onEdit(vendor) here.
+        // Previously, if deletion failed, you were triggering the edit modal manually.
+      } else {
+        toast.success(`Le vendeur ${vendor.nom} a été supprimé.`);
+      }
     }
   };
 

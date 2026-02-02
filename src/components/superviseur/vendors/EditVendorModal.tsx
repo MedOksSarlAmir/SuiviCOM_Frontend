@@ -28,6 +28,7 @@ interface EditVendorModalProps {
 
 export function EditVendorModal({ vendor, onClose }: EditVendorModalProps) {
   const { updateVendor } = useVendorStore();
+
   const { distributors, fetchDependencies } = useSalesStore();
   const [loading, setLoading] = useState(false);
 

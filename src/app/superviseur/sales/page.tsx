@@ -103,7 +103,7 @@ export default function SalesPage() {
                 <SelectContent>
                   {currentVendors.map((v) => (
                     <SelectItem key={v.id} value={v.id.toString()}>
-                      {v.nom} {v.prenom}
+                      {v.code} - {v.nom} {v.prenom}
                     </SelectItem>
                   ))}
                 </SelectContent>

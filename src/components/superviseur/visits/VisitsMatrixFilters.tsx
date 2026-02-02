@@ -91,7 +91,7 @@ export function VisitsMatrixFilters({ filters, setFilters }: any) {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
             <Input
-              placeholder="Nom du vendeur..."
+              placeholder="Code / Nom Vendeur..."
               className="h-10 pl-9 bg-zinc-50 border-zinc-200 text-sm"
               value={filters.search}
               onChange={(e) =>
