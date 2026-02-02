@@ -118,7 +118,7 @@ export function VisitsMatrix({ filters }: any) {
                     rowIdx={rowIdx}
                     colIdx={1}
                     onKeyDown={handleKeyDown}
-                    inputRef={(el) =>
+                    inputRef={(el:any) =>
                       (inputRefs.current[`cell-${rowIdx}-1`] = el)
                     }
                   />
