@@ -138,7 +138,7 @@ export function SalesWeeklyGrid({ filters }: any) {
                       {prod.designation}
                     </span>
                     <span className="text-[10px] text-zinc-400 font-mono uppercase">
-                      {prod.code}
+                      {prod.code} {prod.price ? `- ${prod.price} DA` : ""}
                     </span>
                   </div>
                 </TableCell>

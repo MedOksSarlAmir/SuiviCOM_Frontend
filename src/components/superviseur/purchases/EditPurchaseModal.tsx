@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
+import React, { useState, useCallback, memo, useMemo } from "react";
 import { usePurchaseStore, Purchase } from "@/stores/PurchaseStore";
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Edit, Loader2, ShoppingBag } from "lucide-react";
+import { Trash2, Edit, Loader2 } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -107,29 +107,35 @@ export function EditPurchaseModal({
   const fetchDependencies = usePurchaseStore((s) => s.fetchDependencies);
 
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    date: "",
-    distributeurId: "",
-    status: "",
-    items: [] as any[],
-  });
 
-  // Load data when modal opens
-  useEffect(() => {
-    if (open && purchase) {
-      fetchDependencies();
-      setFormData({
-        date: purchase.date ? purchase.date.split("T")[0] : "",
-        distributeurId: purchase.distributeur_id.toString(),
-        status: purchase.status,
-        items: (purchase.products || []).map((p: any) => ({
-          product_id: p.product_id.toString(),
-          quantity: p.quantity,
-          unit_price: p.unit_price,
-        })),
-      });
-    }
-  }, [open, purchase, fetchDependencies]);
+  // Derived form data from purchase & products
+  const initialFormData = useMemo(() => {
+    if (!purchase)
+      return { date: "", distributeurId: "", status: "", items: [] };
+    const items = (purchase.products || []).map((p: any) => {
+      const prod = products.find(
+        (pr: any) => pr.id.toString() === p.product_id.toString(),
+      );
+      return {
+        product_id: p.product_id.toString(),
+        quantity: p.quantity,
+        unit_price: prod?.unit_price ?? prod?.price_factory ?? 0,
+      };
+    });
+    return {
+      date: purchase.date?.split("T")[0] || "",
+      distributeurId: purchase.distributeur_id?.toString() || "",
+      status: purchase.status || "",
+      items,
+    };
+  }, [purchase, products]);
+
+  const [formData, setFormData] = useState(initialFormData);
+
+  // If products or purchase change while modal is open, update formData
+  React.useEffect(() => {
+    setFormData(initialFormData);
+  }, [initialFormData]);
 
   const calculateTotal = formData.items.reduce(
     (acc, item) => acc + item.quantity * item.unit_price,
@@ -139,45 +145,40 @@ export function EditPurchaseModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     const payload = {
       date: formData.date,
       status: formData.status,
       distributorId: parseInt(formData.distributeurId),
-      products: formData.items.map((item) => ({
-        product_id: parseInt(item.product_id),
-        quantity: item.quantity,
-        unit_price: item.unit_price,
+      products: formData.items.map((i) => ({
+        product_id: parseInt(i.product_id),
+        quantity: i.quantity,
+        unit_price: i.unit_price,
       })),
     };
-
     const success = await updatePurchase(purchase.id, payload);
     setLoading(false);
     if (success) onClose();
   };
 
-  const handleProductChange = useCallback(
-    (index: number, val: string) => {
-      const p = products.find((prod: any) => prod.id.toString() === val);
-      setFormData((prev) => {
-        const newItems = [...prev.items];
-        newItems[index] = {
-          ...newItems[index],
-          product_id: val,
-          unit_price: p ? p.price : 0,
-        };
-        return { ...prev, items: newItems };
-      });
-    },
-    [products],
-  );
+  const handleProductChange = (index: number, val: string) => {
+    const prod = products.find((p: any) => p.id.toString() === val);
+    setFormData((prev) => {
+      const items = [...prev.items];
+      items[index] = {
+        ...items[index],
+        product_id: val,
+        unit_price: prod?.unit_price ?? 0,
+      };
+      return { ...prev, items };
+    });
+  };
 
   const handleQuantityChange = useCallback((index: number, val: string) => {
     const qty = parseInt(val) || 0;
     setFormData((prev) => {
-      const newItems = [...prev.items];
-      newItems[index] = { ...newItems[index], quantity: qty };
-      return { ...prev, items: newItems };
+      const items = [...prev.items];
+      items[index] = { ...items[index], quantity: qty };
+      return { ...prev, items };
     });
   }, []);
 
@@ -193,7 +194,6 @@ export function EditPurchaseModal({
     complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
     annulee: "bg-red-50 text-red-700 border-red-200",
   };
-
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-hidden flex flex-col p-0">

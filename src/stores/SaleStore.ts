@@ -14,6 +14,7 @@ export interface WeeklyProduct {
   designation: string;
   code: string;
   active: boolean;
+  price: number;
   days: number[]; // Qty for Sat -> Thu
 }
 

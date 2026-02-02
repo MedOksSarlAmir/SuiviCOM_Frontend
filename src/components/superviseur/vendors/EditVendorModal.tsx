@@ -31,28 +31,18 @@ export function EditVendorModal({ vendor, onClose }: EditVendorModalProps) {
   const { distributors, fetchDependencies } = useSalesStore();
   const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState({
-    code: "",
-    nom: "",
-    prenom: "",
-    vendor_type: "",
-    distributor_id: "",
-    active: true,
-  });
+  const [form, setForm] = useState(() => ({
+    code: vendor?.code || "",
+    nom: vendor?.nom || "",
+    prenom: vendor?.prenom || "",
+    vendor_type: vendor?.vendor_type || "detail",
+    distributor_id: vendor?.distributor_id?.toString() || "",
+    active: vendor?.active ?? true,
+  }));
 
   useEffect(() => {
     fetchDependencies();
-    if (vendor) {
-      setForm({
-        code: vendor.code || "",
-        nom: vendor.nom || "",
-        prenom: vendor.prenom || "",
-        vendor_type: vendor.vendor_type || "detail",
-        distributor_id: vendor.distributor_id?.toString() || "",
-        active: vendor.active ?? true,
-      });
-    }
-  }, [vendor, fetchDependencies]);
+  }, [fetchDependencies]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

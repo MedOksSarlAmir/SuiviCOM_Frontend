@@ -26,14 +26,13 @@ export const SalesGridCell = React.memo(
     inputRef,
     context,
   }: CellProps) => {
-    const [val, setVal] = useState(initialValue.toString());
+    const [val, setVal] = useState(() => initialValue.toString());
+
     const upsert = useSalesStore((s) => s.upsertSaleItem);
 
     const cellKey = `${productId}-${date}`;
     const isSaving = useSalesStore((s) => s.isSavingCell[cellKey]);
     const isError = useSalesStore((s) => s.isErrorCell[cellKey]);
-
-    useEffect(() => setVal(initialValue.toString()), [initialValue]);
 
     const triggerSave = useCallback(
       async (forcedValue?: string) => {

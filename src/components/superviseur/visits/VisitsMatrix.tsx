@@ -55,16 +55,16 @@ export function VisitsMatrix({ filters }: any) {
               Vendeur
             </TableHead>
             <TableHead className="w-[120px] text-center border-r text-zinc-500 uppercase text-[10px] font-bold">
-              Prog.
+              Programmées
             </TableHead>
             <TableHead className="w-[120px] text-center border-r text-zinc-500 uppercase text-[10px] font-bold">
-              Eff.
+              Effectuées
             </TableHead>
             <TableHead className="w-[120px] text-center border-r text-zinc-500 uppercase text-[10px] font-bold">
               Factures
             </TableHead>
             <TableHead className="text-center font-bold text-zinc-500 uppercase text-[10px]">
-              Couverture
+              Progrès
             </TableHead>
           </TableRow>
         </TableHeader>

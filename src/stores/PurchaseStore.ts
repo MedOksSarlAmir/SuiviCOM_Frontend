@@ -5,6 +5,7 @@ export interface PurchaseItem {
   product_id: number;
   designation: string;
   quantity: number;
+  unit_price: number; // Always use unit_price in frontend
 }
 
 export interface Purchase {
@@ -14,6 +15,7 @@ export interface Purchase {
   distributeur_nom: string;
   status: string;
   products: PurchaseItem[];
+  montant_total: number;
 }
 
 interface PurchaseState {
@@ -78,8 +80,15 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         api.get("/supervisor/products"),
         api.get("/supervisor/distributors"),
       ]);
+
+      // Map products to include unit_price for frontend
+      const products = pRes.data.map((p: any) => ({
+        ...p,
+        unit_price: p.price_factory, // map backend price_factory
+      }));
+
       set({
-        products: pRes.data,
+        products,
         distributors: dRes.data,
         isDependenciesLoaded: true,
       });
@@ -106,11 +115,17 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
               : filters.distributeur_id,
         },
       });
-      set({
-        purchases: res.data.data,
-        total: res.data.total,
-        isLoading: false,
-      });
+
+      // Map purchase items to include unit_price
+      const purchases = res.data.data.map((p: any) => ({
+        ...p,
+        products: p.products.map((item: any) => ({
+          ...item,
+          unit_price: item.price_factory || 0, // map backend field
+        })),
+      }));
+
+      set({ purchases, total: res.data.total, isLoading: false });
     } catch (err) {
       set({ isLoading: false, purchases: [] });
     }
@@ -118,7 +133,15 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
 
   createPurchase: async (data) => {
     try {
-      await api.post("/purchases", data);
+      // Map products to backend fields
+      const payload = {
+        ...data,
+        products: data.products.map((p: any) => ({
+          ...p,
+          price_factory: p.unit_price,
+        })),
+      };
+      await api.post("/purchases", payload);
       get().fetchPurchases();
       return true;
     } catch (err) {
@@ -128,7 +151,14 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
 
   updatePurchase: async (id, data) => {
     try {
-      await api.put(`/purchases/${id}`, data);
+      const payload = {
+        ...data,
+        products: data.products.map((p: any) => ({
+          ...p,
+          price_factory: p.unit_price,
+        })),
+      };
+      await api.put(`/purchases/${id}`, payload);
       get().fetchPurchases();
       return true;
     } catch (err) {

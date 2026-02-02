@@ -16,14 +16,12 @@ export const VisitGridCell = React.memo(
     onKeyDown,
     inputRef,
   }: any) => {
-    const [val, setVal] = useState(initialValue.toString());
+    const [val, setVal] = useState(() => initialValue.toString());
     const upsert = useVisitStore((s) => s.upsertVisitCell);
 
     const cellKey = `${vendorId}-${field}`;
     const isSaving = useVisitStore((s) => s.isSavingCell[cellKey]);
     const isError = useVisitStore((s) => s.isErrorCell[cellKey]);
-
-    useEffect(() => setVal(initialValue.toString()), [initialValue]);
 
     const triggerSave = async (forcedValue?: string) => {
       const num = parseInt(forcedValue ?? val) || 0;

@@ -1,99 +1,182 @@
 "use client";
-import { useEffect } from "react";
-import { useAuthStore } from "@/stores/authStore";
+import React, { useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Users, CheckCircle, TrendingUp, Loader2, AlertCircle } from "lucide-react";
+import {
+  TrendingUp,
+  Users,
+  ClipboardCheck,
+  AlertTriangle,
+  BarChart3,
+  Package,
+  Trophy,
+  ArrowUpRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export function SupervisorOverview() {
-  const { user } = useAuthStore();
-  const { stats, isLoading, error, fetchStats } = useDashboardStore();
+  const { stats, fetchStats, isLoading } = useDashboardStore();
 
   useEffect(() => {
-    if (user?.role && user?.id) {
-      fetchStats(user.role, user.id);
-    }
-  }, [user, fetchStats]);
+    fetchStats();
+  }, [fetchStats]);
 
-  // 1. Loading State
-  if (isLoading) {
+  if (isLoading)
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-amir-blue" />
-          <p className="text-zinc-500 text-sm">Chargement des données...</p>
-        </div>
+      <div className="h-[80vh] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-amir-blue" />
       </div>
     );
-  }
 
-  // 2. Error State
-  if (error) {
-    return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700">
-        <AlertCircle className="h-5 w-5" />
-        <p>{error}</p>
-      </div>
-    );
-  }
+  if (!stats) return null;
 
-  // 3. Helper to format currency safely
-  const formatCurrency = (val: number | undefined) => {
-    return new Intl.NumberFormat('fr-DZ', { 
-      style: 'currency', 
-      currency: 'DZD' 
-    }).format(val || 0);
-  };
-
-  const kpis = [
-    {
-      title: "Chiffre d'Affaires",
-      value: formatCurrency(stats?.salesAmount),
-      icon: TrendingUp,
-      color: "text-green-600",
-      bgColor: "bg-green-100"
-    },
-    {
-      title: "Visites Réalisées",
-      value: `${stats?.completedVisits || 0} / ${stats?.totalVisits || 0}`,
-      icon: CheckCircle,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100"
-    },
-    {
-      title: "Distributeurs Actifs",
-      value: stats?.topDistributors?.length || 0,
-      icon: Users,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100"
-    },
-  ];
+  const { metrics, rankings } = stats;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="p-8 border border-zinc-200 rounded-xl bg-white shadow-sm">
-        <h1 className="text-2xl font-bold text-zinc-900">Tableau de Bord</h1>
-        <p className="text-zinc-500 mt-1">
-          Bienvenue, <span className="text-amir-blue font-semibold">{user?.prenom} {user?.nom}</span>. 
-          Zone: <span className="text-zinc-900 font-medium">{user?.wilaya || "N/A"}</span>.
+    <div className="p-6 space-y-8 animate-in fade-in duration-700">
+      <div>
+        <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">
+          Vue d&apos;ensemble
+        </h1>
+        <p className="text-zinc-500">
+          Statistiques de performance pour le mois en cours.
         </p>
       </div>
-      
+
+      {/* Row 1: Vital Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpis.map((kpi, idx) => (
-          <Card key={idx} className="border-zinc-200 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-500">{kpi.title}</CardTitle>
-              <div className={`p-2 rounded-lg ${kpi.bgColor}`}>
-                <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+        <MetricCard
+          title="Ventes Réalisées"
+          value={`${metrics.sales.toLocaleString()} DA`}
+          icon={<TrendingUp className="text-emerald-600" />}
+          description="Chiffre d'affaires total vendeurs"
+        />
+        <MetricCard
+          title="Approvisionnement"
+          value={`${metrics.purchases.toLocaleString()} DA`}
+          icon={<Package className="text-amir-blue" />}
+          description="Total achats distributeurs"
+        />
+        <MetricCard
+          title="Couverture Visites"
+          value={`${metrics.coverage}%`}
+          icon={<ClipboardCheck className="text-purple-600" />}
+          description="Visites effectuées vs. prévues"
+          progress={metrics.coverage}
+        />
+        <MetricCard
+          title="Alertes Stock"
+          value={metrics.lowStockAlerts}
+          icon={<AlertTriangle className="text-amber-600" />}
+          description="Produits < 5 unités en stock"
+          trend="Attention requise"
+          trendColor="text-amber-600"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top Vendors */}
+        <Card className="border-zinc-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Trophy className="w-5 h-5 text-yellow-500" />
+            <CardTitle className="text-lg">Top 5 Vendeurs (Ventes)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {rankings.vendors.map((v: any, i: number) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-zinc-400 w-4">
+                    #{i + 1}
+                  </span>
+                  <span className="font-semibold text-sm text-zinc-700">
+                    {v.name}
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-amir-blue">
+                  {v.value.toLocaleString()} DA
+                </span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-zinc-900">{kpi.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Top Products */}
+        <Card className="border-zinc-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-amir-blue" />
+            <CardTitle className="text-lg">
+              Produits les plus vendus (Quantité)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {rankings.products.map((p: any, i: number) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-zinc-600">{p.name}</span>
+                  <span className="font-bold">{p.value} unités</span>
+                </div>
+                <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amir-blue/60"
+                    style={{
+                      width: `${(p.value / rankings.products[0].value) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
+  );
+}
+
+function MetricCard({
+  title,
+  value,
+  icon,
+  description,
+  progress,
+  trend,
+  trendColor,
+}: any) {
+  return (
+    <Card className="border-zinc-200 shadow-sm overflow-hidden relative">
+      <CardHeader className="pb-2 space-y-0">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+            {title}
+          </CardTitle>
+          <div className="p-2 bg-zinc-50 rounded-lg">{icon}</div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-zinc-900">{value}</div>
+        <p className="text-[10px] text-zinc-400 mt-1">{description}</p>
+        {progress !== undefined && (
+          <div className="w-full h-1 bg-zinc-100 rounded-full mt-3 overflow-hidden">
+            <div
+              className="h-full bg-amir-blue transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+        {trend && (
+          <div
+            className={cn(
+              "text-[10px] font-bold mt-2 flex items-center gap-1",
+              trendColor,
+            )}
+          >
+            <ArrowUpRight className="w-3 h-3" /> {trend}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

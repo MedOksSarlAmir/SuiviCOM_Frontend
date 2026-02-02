@@ -39,7 +39,7 @@ export function NewPurchaseModal() {
     distributeurId: "",
     date: new Date().toISOString().split("T")[0],
     status: "en_cours",
-    items: [{ product_id: "", quantity: 1, price: 0 }],
+    items: [{ product_id: "", quantity: 1, unit_price: 0 }],
   });
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function NewPurchaseModal() {
 
   const calculateTotal = useMemo(() => {
     return formData.items.reduce(
-      (acc, item) => acc + item.quantity * item.price,
+      (acc, item) => acc + item.quantity * item.unit_price,
       0,
     );
   }, [formData.items]);
@@ -72,7 +72,7 @@ export function NewPurchaseModal() {
         distributeurId: "",
         date: new Date().toISOString().split("T")[0],
         status: "en_cours",
-        items: [{ product_id: "", quantity: 1, price: 0 }],
+        items: [{ product_id: "", quantity: 1, unit_price: 0 }],
       });
     }
   };
@@ -83,7 +83,7 @@ export function NewPurchaseModal() {
     newItems[index] = {
       ...newItems[index],
       product_id: val,
-      price: p?.price || 0,
+      unit_price: p?.unit_price || 0, // use mapped unit_price
     };
     setFormData({ ...formData, items: newItems });
   };
@@ -181,7 +181,7 @@ export function NewPurchaseModal() {
                       ...formData,
                       items: [
                         ...formData.items,
-                        { product_id: "", quantity: 1, price: 0 },
+                        { product_id: "", quantity: 1, unit_price: 0 },
                       ],
                     })
                   }
@@ -224,7 +224,7 @@ export function NewPurchaseModal() {
                         </Select>
                       </TableCell>
                       <TableCell className="py-2 text-zinc-500 text-sm">
-                        {item.price} DA
+                        {item.unit_price} DA
                       </TableCell>
                       <TableCell className="py-2">
                         <Input
@@ -240,7 +240,7 @@ export function NewPurchaseModal() {
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium pr-4 py-2">
-                        {(item.quantity * item.price).toLocaleString()} DA
+                        {(item.quantity * item.unit_price).toLocaleString()} DA
                       </TableCell>
                       <TableCell className="py-2 text-center">
                         <Button
