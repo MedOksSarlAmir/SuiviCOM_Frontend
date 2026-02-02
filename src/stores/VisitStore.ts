@@ -1,7 +1,20 @@
 import { create } from "zustand";
 import api from "@/services/api";
+import { toast } from "sonner";
+
+interface VisitMatrixItem {
+  vendor_id: number;
+  vendor_name: string;
+  vendor_code: string;
+  vendor_type: string;
+  prog: number;
+  done: number;
+  invoices: number;
+  visit_id: number | null;
+}
 
 interface VisitState {
+  // Standard State
   visits: any[];
   total: number;
   isLoading: boolean;
@@ -14,20 +27,46 @@ interface VisitState {
     status?: string;
     distributeur_id?: string;
   };
+  isErrorCell: Record<string, boolean>; // key: "vendorId-field"
+
+  // Matrix State
+  matrixData: VisitMatrixItem[];
+  isSavingCell: Record<string, boolean>; // key: "vendorId-field"
+
+  // Actions
   setPage: (page: number) => void;
   setLimit: (limit: number) => void;
   setFilters: (filters: Partial<VisitState["filters"]>) => void;
   fetchVisits: () => Promise<void>;
-  createVisit: (data: any) => Promise<boolean>;
-  updateVisit: (id: number, data: any) => Promise<boolean>;
-  deleteVisit: (id: number) => Promise<boolean>;
+
+  // Matrix Actions
+  fetchVisitMatrix: (params: {
+    distributor_id: string;
+    date: string;
+    search?: string;
+    vendor_type?: string;
+    page?: number;
+  }) => Promise<void>;
+
+  upsertVisitCell: (payload: {
+    vendor_id: number;
+    date: string;
+    field: "prog" | "done" | "invoices";
+    value: number;
+  }) => Promise<void>;
+
+  reset: () => void;
 }
 
 export const useVisitStore = create<VisitState>((set, get) => ({
   visits: [],
+  matrixData: [],
+  isSavingCell: {},
   total: 0,
   isLoading: false,
   page: 1,
+  isErrorCell: {},
+
   limit: 20,
   filters: { status: "all", distributeur_id: "all" },
 
@@ -63,38 +102,58 @@ export const useVisitStore = create<VisitState>((set, get) => ({
         },
       });
       set({ visits: res.data.data, total: res.data.total, isLoading: false });
-    } catch (err) {
+    } catch {
       set({ isLoading: false, visits: [] });
     }
   },
 
-  createVisit: async (data) => {
+  fetchVisitMatrix: async (params) => {
+    set({ isLoading: true });
     try {
-      await api.post("/visits", data);
-      get().fetchVisits();
-      return true;
+      const res = await api.get("/visits/matrix", {
+        params: { ...params, pageSize: 25 },
+      });
+      set({
+        matrixData: res.data.data,
+        total: res.data.total,
+        isLoading: false,
+      });
     } catch {
-      return false;
+      set({ isLoading: false, matrixData: [] });
     }
   },
 
-  updateVisit: async (id, data) => {
+  upsertVisitCell: async (payload) => {
+    const { vendor_id, field, value } = payload;
+    const cellKey = `${vendor_id}-${field}`;
+
+    set((state) => ({
+      isSavingCell: { ...state.isSavingCell, [cellKey]: true },
+      isErrorCell: { ...state.isErrorCell, [cellKey]: false }, // Clear previous error on attempt
+    }));
+
     try {
-      await api.put(`/visits/${id}`, data);
-      get().fetchVisits();
-      return true;
-    } catch {
-      return false;
+      await api.post("/visits/upsert", payload);
+
+      const { matrixData } = get();
+      const newData = matrixData.map((v) =>
+        v.vendor_id === vendor_id ? { ...v, [field]: value } : v,
+      );
+
+      set({ matrixData: newData });
+      // No toast on success to reduce noise, or keep it very short
+    } catch (err) {
+      // Set error state for this specific cell
+      set((state) => ({
+        isErrorCell: { ...state.isErrorCell, [cellKey]: true },
+      }));
+      toast.error("Erreur de sauvegarde");
+    } finally {
+      set((state) => ({
+        isSavingCell: { ...state.isSavingCell, [cellKey]: false },
+      }));
     }
   },
 
-  deleteVisit: async (id) => {
-    try {
-      await api.delete(`/visits/${id}`);
-      get().fetchVisits();
-      return true;
-    } catch {
-      return false;
-    }
-  },
+  reset: () => set({ matrixData: [], visits: [], total: 0, isSavingCell: {}, isErrorCell: {} }),
 }));

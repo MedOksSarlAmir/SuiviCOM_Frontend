@@ -4,7 +4,6 @@ import { ShoppingCart } from "lucide-react";
 
 export function SalesHeader() {
   const { user } = useAuthStore();
-  console.log(user);
 
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center px-8 sticky top-0 z-10">

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import api from "@/services/api";
 import { toast } from "sonner";
+import { is } from "date-fns/locale";
 
 export interface CategoryWithFormats {
   id: number;
@@ -34,6 +35,7 @@ interface SalesState {
   productTypes: any[];
   vendorsCache: Record<number, any[]>;
   isDependenciesLoaded: boolean;
+  isErrorCell: Record<string, boolean>;
 
   // Actions
   fetchDependencies: () => Promise<void>;
@@ -79,6 +81,7 @@ const INITIAL_STATE = {
   categories: [],
   productTypes: [],
   vendorsCache: {},
+  isErrorCell: {},
   isDependenciesLoaded: false,
 };
 
@@ -142,8 +145,9 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const { product_id, date } = payload;
     const cellKey = `${product_id}-${date}`;
 
-    set((state) => ({
-      isSavingCell: { ...state.isSavingCell, [cellKey]: true },
+    set((s) => ({
+      isSavingCell: { ...s.isSavingCell, [cellKey]: true },
+      isErrorCell: { ...s.isErrorCell, [cellKey]: false },
     }));
 
     try {
@@ -176,16 +180,14 @@ export const useSalesStore = create<SalesState>((set, get) => ({
         duration: 2000,
       });
     } catch (err: any) {
-      console.error("Failed to upsert item:", err);
+      set((s) => ({ isErrorCell: { ...s.isErrorCell, [cellKey]: true } }));
       toast.error("Erreur d'enregistrement", {
         description:
           err.response?.data?.message ||
           "Impossible de communiquer avec le serveur",
       });
     } finally {
-      set((state) => ({
-        isSavingCell: { ...state.isSavingCell, [cellKey]: false },
-      }));
+      set((s) => ({ isSavingCell: { ...s.isSavingCell, [cellKey]: false } }));
     }
   },
 
