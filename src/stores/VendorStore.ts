@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import api from "@/services/api";
+import { toast } from "sonner";
 
 interface VendorState {
   vendors: any[];
@@ -10,12 +11,17 @@ interface VendorState {
   createVendor: (data: any) => Promise<boolean>;
   updateVendor: (id: number, data: any) => Promise<boolean>;
   deleteVendor: (id: number) => Promise<{ success: boolean; message?: string }>;
+  reset: () => void;
 }
 
-export const useVendorStore = create<VendorState>((set, get) => ({
+const INITIAL_STATE = {
   vendors: [],
   isLoading: false,
   filters: { distributor_id: "all", search: "", vendor_type: "all" },
+};
+
+export const useVendorStore = create<VendorState>((set, get) => ({
+  ...INITIAL_STATE,
 
   setFilters: (newFilters) => {
     set((state) => ({ filters: { ...state.filters, ...newFilters } }));
@@ -38,7 +44,7 @@ export const useVendorStore = create<VendorState>((set, get) => ({
         },
       });
       set({ vendors: res.data, isLoading: false });
-    } catch (err) {
+    } catch {
       set({ isLoading: false });
     }
   },
@@ -46,9 +52,11 @@ export const useVendorStore = create<VendorState>((set, get) => ({
   createVendor: async (data) => {
     try {
       await api.post("/vendors", data);
+      toast.success("Vendeur ajouté avec succès");
       get().fetchVendors();
       return true;
-    } catch (err) {
+    } catch {
+      toast.error("Erreur lors de l'ajout du vendeur");
       return false;
     }
   },
@@ -56,9 +64,11 @@ export const useVendorStore = create<VendorState>((set, get) => ({
   updateVendor: async (id, data) => {
     try {
       await api.put(`/vendors/${id}`, data);
+      toast.success("Vendeur mis à jour");
       get().fetchVendors();
       return true;
-    } catch (err) {
+    } catch {
+      toast.error("Erreur lors de la modification");
       return false;
     }
   },
@@ -66,13 +76,16 @@ export const useVendorStore = create<VendorState>((set, get) => ({
   deleteVendor: async (id) => {
     try {
       await api.delete(`/vendors/${id}`);
+      toast.success("Vendeur supprimé");
       get().fetchVendors();
       return { success: true };
     } catch (err: any) {
-      return {
-        success: false,
-        message: err.response?.data?.message || "Erreur lors de la suppression",
-      };
+      const msg =
+        err.response?.data?.message || "Erreur lors de la suppression";
+      toast.error(msg);
+      return { success: false, message: msg };
     }
   },
+
+  reset: () => set(INITIAL_STATE),
 }));

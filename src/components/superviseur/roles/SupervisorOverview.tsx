@@ -53,7 +53,7 @@ export function SupervisorOverview() {
           description="Chiffre d'affaires total vendeurs"
         />
         <MetricCard
-          title="Approvisionnement"
+          title="Achats Distributeurs"
           value={`${metrics.purchases.toLocaleString()} DA`}
           icon={<Package className="text-amir-blue" />}
           description="Total achats distributeurs"

@@ -17,7 +17,7 @@ export function PurchasesHeader() {
               Achats Distributeurs
             </h1>
             <p className="text-zinc-500 text-sm">
-              Historique des approvisionnements usine.
+              Historique des achats usine.
             </p>
           </div>
         </div>

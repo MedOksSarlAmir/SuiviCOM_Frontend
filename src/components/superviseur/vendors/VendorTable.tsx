@@ -32,7 +32,7 @@ const VendorRow = memo(({ vendor, onEdit, onDelete }: any) => (
     className="cursor-pointer hover:bg-indigo-50/30 transition-colors group"
     onClick={() => onEdit(vendor)}
   >
-    <TableCell className="font-mono text-xs pl-6">{vendor.code}</TableCell>
+    <TableCell className="font-bold text-zinc-800 pl-6">{vendor.code}</TableCell>
     <TableCell className="font-bold text-zinc-800">
       {vendor.nom} {vendor.prenom}
     </TableCell>

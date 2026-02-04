@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { usePurchaseStore } from "@/stores/PurchaseStore";
+import { useSalesStore } from "@/stores/SaleStore";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, ShoppingBag, Loader2 } from "lucide-react";
+import {
+  Plus,
+  ShoppingBag,
+  Loader2,
+  Search,
+  PackageCheck,
+  Banknote,
+} from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -28,116 +36,149 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { PaginationControl } from "@/components/ui/pagination-control";
+import { cn } from "@/lib/utils";
 
 export function NewPurchaseModal() {
-  const { products, distributors, createPurchase, fetchDependencies } =
-    usePurchaseStore();
+  const {
+    distributors,
+    products, // Full product list for price lookups
+    createPurchase,
+    fetchPurchaseMatrix,
+    fetchDependencies: fetchPurchaseDeps,
+    matrix,
+    matrixTotal,
+    isMatrixLoading,
+  } = usePurchaseStore();
+
+  const { categories, fetchDependencies: fetchSalesDeps } = useSalesStore();
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [header, setHeader] = useState({
     distributeurId: "",
     date: new Date().toISOString().split("T")[0],
     status: "en_cours",
-    items: [{ product_id: "", quantity: 1, unit_price: 0 }],
+  });
+
+  const [localQtys, setLocalQtys] = useState<Record<number, number>>({});
+  const [gridFilters, setGridFilters] = useState({
+    search: "",
+    category: "all",
+    page: 1,
   });
 
   useEffect(() => {
-    if (open) fetchDependencies();
-  }, [open, fetchDependencies]);
+    if (open) {
+      fetchSalesDeps();
+      fetchPurchaseDeps();
+      fetchPurchaseMatrix({ ...gridFilters, pageSize: 25 });
+    }
+  }, [
+    open,
+    gridFilters,
+    fetchPurchaseMatrix,
+    fetchSalesDeps,
+    fetchPurchaseDeps,
+  ]);
 
-  const calculateTotal = useMemo(() => {
-    return formData.items.reduce(
-      (acc, item) => acc + item.quantity * item.unit_price,
-      0,
-    );
-  }, [formData.items]);
+  const handleQtyChange = (id: number, val: string) => {
+    const q = parseInt(val) || 0;
+    setLocalQtys((prev) => ({ ...prev, [id]: q }));
+  };
+
+  // Improved totals calculation that works across multiple pages
+  const totals = useMemo(() => {
+    let units = 0;
+    let amount = 0;
+
+    Object.entries(localQtys).forEach(([id, qty]) => {
+      if (qty > 0) {
+        units += qty;
+        // Search in the full products list (loaded in store) to get the price
+        // even if the product is not on the current matrix page.
+        const p = products.find((prod) => prod.id === parseInt(id));
+        if (p) {
+          amount += qty * (p.price_factory || 0);
+        }
+      }
+    });
+
+    return { units, amount };
+  }, [localQtys, products]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const productsPayload = Object.entries(localQtys)
+      .filter(([_, qty]) => qty > 0)
+      .map(([id, qty]) => ({ product_id: parseInt(id), quantity: qty }));
+
+    if (productsPayload.length === 0) {
+      alert("Veuillez saisir au moins une quantité avant de valider.");
+      return;
+    }
+
     setLoading(true);
     const success = await createPurchase({
-      date: formData.date,
-      distributeurId: parseInt(formData.distributeurId),
-      status: formData.status,
-      products: formData.items.map((i) => ({
-        product_id: parseInt(i.product_id),
-        quantity: i.quantity,
-      })),
+      ...header,
+      products: productsPayload,
     });
     setLoading(false);
+
     if (success) {
       setOpen(false);
-      setFormData({
-        distributeurId: "",
-        date: new Date().toISOString().split("T")[0],
-        status: "en_cours",
-        items: [{ product_id: "", quantity: 1, unit_price: 0 }],
-      });
+      setLocalQtys({});
     }
-  };
-
-  const handleProductChange = (index: number, val: string) => {
-    const p = products.find((prod: any) => prod.id.toString() === val);
-    const newItems = [...formData.items];
-    newItems[index] = {
-      ...newItems[index],
-      product_id: val,
-      unit_price: p?.unit_price || 0, // use mapped unit_price
-    };
-    setFormData({ ...formData, items: newItems });
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-amir-blue hover:bg-amir-blue-hover text-white h-9">
+        <Button className="bg-amir-blue text-white h-9 shadow-sm">
           <Plus className="w-4 h-4 mr-2" /> Nouvel Achat
         </Button>
       </DialogTrigger>
-      {/* sm:max-w-4xl and overflow-hidden are key here */}
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+
+      <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
         <DialogHeader className="p-5 border-b bg-white">
-          <DialogTitle className="flex items-center gap-3">
-            <ShoppingBag className="w-5 h-5 text-amir-blue" /> Nouvel
-            Approvisionnement
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <ShoppingBag className="w-6 h-6 text-amir-blue" />
+            Nouvel Approvisionnement
           </DialogTitle>
         </DialogHeader>
 
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col flex-1 overflow-hidden bg-zinc-50/50"
+          className="flex flex-col flex-1 overflow-hidden"
         >
-          {/* overflow-y-auto allows the body to scroll while keeping header/footer sticky */}
-          <div className="p-5 space-y-5 overflow-y-auto">
-            <div className="p-4 bg-white rounded-lg border border-zinc-200 grid grid-cols-1 sm:grid-cols-4 gap-4 shadow-sm">
+          <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-zinc-50/50">
+            <div className="p-4 bg-white rounded-xl border border-zinc-200 grid grid-cols-1 sm:grid-cols-3 gap-6 shadow-sm">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-zinc-500 uppercase">
-                  Date
+                <Label className="text-[11px] font-black uppercase text-zinc-400 ml-1">
+                  Date d&apos;achat
                 </Label>
                 <Input
                   type="date"
-                  value={formData.date}
+                  value={header.date}
                   onChange={(e) =>
-                    setFormData({ ...formData, date: e.target.value })
+                    setHeader({ ...header, date: e.target.value })
                   }
-                  className="h-9"
+                  className="h-10"
                 />
               </div>
-
-              {/* Spanning 2 columns to fill the visual gap since there is no vendor */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-semibold text-zinc-500 uppercase">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-black uppercase text-zinc-400 ml-1">
                   Distributeur
                 </Label>
                 <Select
-                  value={formData.distributeurId}
+                  value={header.distributeurId}
                   onValueChange={(v) =>
-                    setFormData({ ...formData, distributeurId: v })
+                    setHeader({ ...header, distributeurId: v })
                   }
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Choisir le partenaire..." />
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Partenaire usine..." />
                   </SelectTrigger>
                   <SelectContent>
                     {distributors.map((d) => (
@@ -148,151 +189,197 @@ export function NewPurchaseModal() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-zinc-500 uppercase">
-                  Statut
+                <Label className="text-[11px] font-black uppercase text-zinc-400 ml-1">
+                  État
                 </Label>
                 <Select
-                  value={formData.status}
-                  onValueChange={(v) => setFormData({ ...formData, status: v })}
+                  value={header.status}
+                  onValueChange={(v) => setHeader({ ...header, status: v })}
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="en_cours">🟡 En cours</SelectItem>
-                    <SelectItem value="complete">🟢 Validée</SelectItem>
+                    <SelectItem value="en_cours">
+                      🟡 En cours (Brouillon)
+                    </SelectItem>
+                    <SelectItem value="complete">
+                      🟢 Validée (Stock mis à jour)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
-              <div className="bg-zinc-50/50 px-4 py-2 border-b flex justify-between items-center">
-                <span className="font-medium text-sm">Produits commandés</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-amir-blue"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      items: [
-                        ...formData.items,
-                        { product_id: "", quantity: 1, unit_price: 0 },
-                      ],
+            <div className="flex flex-col sm:flex-row gap-3 items-center bg-white p-3 rounded-xl border border-zinc-200 shadow-sm">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  placeholder="Chercher une référence ou désignation..."
+                  className="pl-10 h-10 border-zinc-200"
+                  value={gridFilters.search}
+                  onChange={(e) =>
+                    setGridFilters({
+                      ...gridFilters,
+                      search: e.target.value,
+                      page: 1,
                     })
                   }
-                >
-                  + Ajouter une ligne
-                </Button>
+                />
               </div>
+              <Select
+                value={gridFilters.category}
+                onValueChange={(v) =>
+                  setGridFilters({ ...gridFilters, category: v, page: 1 })
+                }
+              >
+                <SelectTrigger className="w-full sm:w-[220px] h-10">
+                  <SelectValue placeholder="Famille" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les familles</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden relative shadow-sm">
+              {isMatrixLoading && (
+                <div className="absolute inset-0 bg-white/60 z-20 flex flex-col items-center justify-center backdrop-blur-[1px]">
+                  <Loader2 className="animate-spin text-amir-blue w-8 h-8 mb-2" />
+                </div>
+              )}
+
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-zinc-50 border-b">
                   <TableRow>
-                    <TableHead className="w-[45%] pl-4 text-xs">
-                      Désignation
+                    <TableHead className="pl-6 h-12">Produit</TableHead>
+                    <TableHead className="h-12">Prix Usine</TableHead>
+                    <TableHead className="w-[160px] text-center h-12 pr-6">
+                      Quantité
                     </TableHead>
-                    <TableHead className="text-xs">Prix Unit.</TableHead>
-                    <TableHead className="text-xs">Qté</TableHead>
-                    <TableHead className="text-right pr-4 text-xs">
-                      Total
-                    </TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {formData.items.map((item, index) => (
-                    <TableRow key={index} className="hover:bg-zinc-50">
-                      <TableCell className="pl-4 py-2">
-                        <Select
-                          value={item.product_id}
-                          onValueChange={(v) => handleProductChange(index, v)}
-                        >
-                          <SelectTrigger className="border-0 shadow-none bg-transparent h-8">
-                            <SelectValue placeholder="Choisir..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products.map((p: any) => (
-                              <SelectItem key={p.id} value={p.id.toString()}>
-                                {p.code} - {p.designation}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="py-2 text-zinc-500 text-sm">
-                        {item.unit_price} DA
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          className="h-8 w-20"
-                          onChange={(e) => {
-                            const newItems = [...formData.items];
-                            newItems[index].quantity =
-                              parseInt(e.target.value) || 0;
-                            setFormData({ ...formData, items: newItems });
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium pr-4 py-2">
-                        {(item.quantity * item.unit_price).toLocaleString()} DA
-                      </TableCell>
-                      <TableCell className="py-2 text-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-red-500"
-                          disabled={formData.items.length === 1}
-                          onClick={() =>
-                            setFormData({
-                              ...formData,
-                              items: formData.items.filter(
-                                (_, i) => i !== index,
-                              ),
-                            })
-                          }
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {matrix.map((p) => {
+                    const currentQty = localQtys[p.product_id] ?? 0;
+                    const isSelected = currentQty > 0;
+                    return (
+                      <TableRow
+                        key={p.product_id}
+                        className={cn(
+                          "transition-all duration-200",
+                          isSelected
+                            ? "bg-amir-blue/[0.03] hover:bg-amir-blue/[0.06]"
+                            : "hover:bg-zinc-50",
+                        )}
+                      >
+                        <TableCell className="pl-6 py-3">
+                          <p
+                            className={cn(
+                              "text-sm transition-colors",
+                              isSelected
+                                ? "font-bold text-zinc-900"
+                                : "font-medium text-zinc-600",
+                            )}
+                          >
+                            {p.designation}
+                          </p>
+                          <p className="text-[10px] text-zinc-400 font-mono tracking-wider">
+                            {p.code}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-sm font-medium text-zinc-500">
+                          {p.price_factory.toLocaleString()}{" "}
+                          <span className="text-[10px]">DA</span>
+                        </TableCell>
+                        <TableCell className="py-2 pr-6">
+                          <Input
+                            type="number"
+                            className={cn(
+                              "text-center h-9 transition-all border-zinc-200",
+                              isSelected
+                                ? "font-black text-amir-blue border-amir-blue ring-2 ring-amir-blue/10 bg-white"
+                                : "text-zinc-300 font-normal bg-transparent",
+                            )}
+                            value={currentQty || ""}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) =>
+                              handleQtyChange(p.product_id, e.target.value)
+                            }
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+              <div className="p-3 border-t bg-zinc-50/50">
+                <PaginationControl
+                  total={matrixTotal}
+                  limit={25}
+                  page={gridFilters.page}
+                  onPageChange={(p) =>
+                    setGridFilters({ ...gridFilters, page: p })
+                  }
+                />
+              </div>
             </div>
           </div>
 
-          <DialogFooter className="bg-white p-4 border-t flex items-center justify-between">
-            <div className="text-2xl font-bold text-amir-blue">
-              {calculateTotal.toLocaleString()} DZD
+          <DialogFooter className="bg-white p-5 border-t flex items-center justify-between">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-3">
+                <div className="bg-amir-blue/10 p-2 rounded-lg">
+                  <PackageCheck className="w-5 h-5 text-amir-blue" />
+                </div>
+                <div className="flex flex-col leading-none">
+                  <span className="text-xs font-bold text-zinc-400 uppercase mb-1">
+                    Total Unités
+                  </span>
+                  <span className="text-xl font-black text-amir-blue">
+                    {totals.units.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-100 p-2 rounded-lg">
+                  <Banknote className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="flex flex-col leading-none">
+                  <span className="text-xs font-bold text-zinc-400 uppercase mb-1">
+                    Montant Estimé
+                  </span>
+                  <span className="text-xl font-black text-emerald-600">
+                    {totals.amount.toLocaleString()}{" "}
+                    <span className="text-sm">DA</span>
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="flex gap-3">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => setOpen(false)}
+                className="text-zinc-500"
               >
                 Annuler
               </Button>
               <Button
                 type="submit"
-                className="bg-amir-blue w-32"
-                disabled={
-                  loading ||
-                  !formData.distributeurId ||
-                  formData.items.some((i) => !i.product_id)
-                }
+                className="bg-amir-blue hover:bg-amir-blue-hover min-w-[160px] font-bold h-11"
+                disabled={loading || !header.distributeurId}
               >
                 {loading ? (
-                  <Loader2 className="animate-spin h-4 w-4" />
+                  <Loader2 className="animate-spin h-5 w-5" />
                 ) : (
-                  "Valider"
+                  "Valider l'achat"
                 )}
               </Button>
             </div>

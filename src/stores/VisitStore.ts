@@ -14,7 +14,6 @@ interface VisitMatrixItem {
 }
 
 interface VisitState {
-  // Standard State
   visits: any[];
   total: number;
   isLoading: boolean;
@@ -24,51 +23,34 @@ interface VisitState {
     startDate?: string;
     endDate?: string;
     search?: string;
-    status?: string;
     distributeur_id?: string;
   };
-  isErrorCell: Record<string, boolean>; // key: "vendorId-field"
-
-  // Matrix State
+  isErrorCell: Record<string, boolean>;
   matrixData: VisitMatrixItem[];
-  isSavingCell: Record<string, boolean>; // key: "vendorId-field"
-
-  // Actions
+  isSavingCell: Record<string, boolean>;
   setPage: (page: number) => void;
   setLimit: (limit: number) => void;
   setFilters: (filters: Partial<VisitState["filters"]>) => void;
   fetchVisits: () => Promise<void>;
-
-  // Matrix Actions
-  fetchVisitMatrix: (params: {
-    distributor_id: string;
-    date: string;
-    search?: string;
-    vendor_type?: string;
-    page?: number;
-  }) => Promise<void>;
-
-  upsertVisitCell: (payload: {
-    vendor_id: number;
-    date: string;
-    field: "prog" | "done" | "invoices";
-    value: number;
-  }) => Promise<void>;
-
+  fetchVisitMatrix: (params: any) => Promise<void>;
+  upsertVisitCell: (payload: any) => Promise<void>;
   reset: () => void;
 }
 
-export const useVisitStore = create<VisitState>((set, get) => ({
+const INITIAL_STATE = {
   visits: [],
   matrixData: [],
   isSavingCell: {},
   total: 0,
   isLoading: false,
   page: 1,
-  isErrorCell: {},
-
   limit: 20,
-  filters: { status: "all", distributeur_id: "all" },
+  isErrorCell: {},
+  filters: { distributeur_id: "all" },
+};
+
+export const useVisitStore = create<VisitState>((set, get) => ({
+  ...INITIAL_STATE,
 
   setPage: (page) => {
     set({ page });
@@ -92,7 +74,6 @@ export const useVisitStore = create<VisitState>((set, get) => ({
           page,
           pageSize: limit,
           search: filters.search,
-          status: filters.status,
           startDate: filters.startDate,
           endDate: filters.endDate,
           distributeur_id:
@@ -126,28 +107,23 @@ export const useVisitStore = create<VisitState>((set, get) => ({
   upsertVisitCell: async (payload) => {
     const { vendor_id, field, value } = payload;
     const cellKey = `${vendor_id}-${field}`;
-
     set((state) => ({
       isSavingCell: { ...state.isSavingCell, [cellKey]: true },
-      isErrorCell: { ...state.isErrorCell, [cellKey]: false }, // Clear previous error on attempt
+      isErrorCell: { ...state.isErrorCell, [cellKey]: false },
     }));
-
     try {
       await api.post("/visits/upsert", payload);
-
       const { matrixData } = get();
       const newData = matrixData.map((v) =>
         v.vendor_id === vendor_id ? { ...v, [field]: value } : v,
       );
-
       set({ matrixData: newData });
-      // No toast on success to reduce noise, or keep it very short
-    } catch (err) {
-      // Set error state for this specific cell
+      toast.success("Donnée visite mise à jour", { duration: 1500 });
+    } catch {
       set((state) => ({
         isErrorCell: { ...state.isErrorCell, [cellKey]: true },
       }));
-      toast.error("Erreur de sauvegarde");
+      toast.error("Erreur de sauvegarde visite");
     } finally {
       set((state) => ({
         isSavingCell: { ...state.isSavingCell, [cellKey]: false },
@@ -155,5 +131,5 @@ export const useVisitStore = create<VisitState>((set, get) => ({
     }
   },
 
-  reset: () => set({ matrixData: [], visits: [], total: 0, isSavingCell: {}, isErrorCell: {} }),
+  reset: () => set(INITIAL_STATE),
 }));

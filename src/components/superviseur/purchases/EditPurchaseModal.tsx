@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useCallback, memo, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { usePurchaseStore, Purchase } from "@/stores/PurchaseStore";
+import { useSalesStore } from "@/stores/SaleStore";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Edit, Loader2 } from "lucide-react";
+import { Edit, Loader2, Search, PackageCheck, Banknote } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -27,218 +28,147 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-
-// Memoized Row to prevent UI lag
-const PurchaseRowItem = memo(
-  ({
-    index,
-    item,
-    products,
-    onProductChange,
-    onQtyChange,
-    onRemove,
-    isRemovable,
-  }: any) => {
-    return (
-      <TableRow className="hover:bg-zinc-50 border-b-zinc-50">
-        <TableCell className="pl-4 py-2">
-          <Select
-            value={item.product_id?.toString()}
-            onValueChange={(v) => onProductChange(index, v)}
-          >
-            <SelectTrigger className="border-0 shadow-none h-8 px-0 w-full focus:ring-0 bg-transparent">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {products.map((p: any) => (
-                <SelectItem key={p.id} value={p.id.toString()}>
-                  {p.code} - {p.designation}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </TableCell>
-        <TableCell className="py-2 text-sm text-zinc-500">
-          {item.unit_price} DA
-        </TableCell>
-        <TableCell className="py-2">
-          <Input
-            type="number"
-            className="h-8 w-20"
-            value={item.quantity}
-            onChange={(e) => onQtyChange(index, e.target.value)}
-          />
-        </TableCell>
-        <TableCell className="text-right pr-4 py-2 font-medium">
-          {(item.quantity * item.unit_price).toLocaleString()}
-        </TableCell>
-        <TableCell className="py-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-red-500"
-            onClick={() => onRemove(index)}
-            disabled={!isRemovable}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </TableCell>
-      </TableRow>
-    );
-  },
-);
-PurchaseRowItem.displayName = "PurchaseRowItem";
-
-interface EditPurchaseModalProps {
-  purchase: Purchase;
-  open: boolean;
-  onClose: () => void;
-}
+import { PaginationControl } from "@/components/ui/pagination-control";
+import { cn } from "@/lib/utils";
+import { init } from "next/dist/compiled/webpack/webpack";
 
 export function EditPurchaseModal({
   purchase,
   open,
   onClose,
-}: EditPurchaseModalProps) {
-  const products = usePurchaseStore((s) => s.products);
-  const distributors = usePurchaseStore((s) => s.distributors);
-  const updatePurchase = usePurchaseStore((s) => s.updatePurchase);
-  const fetchDependencies = usePurchaseStore((s) => s.fetchDependencies);
+}: {
+  purchase: Purchase;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const {
+    distributors,
+    updatePurchase,
+    fetchPurchaseMatrix,
+    matrix,
+    matrixTotal,
+    isMatrixLoading,
+  } = usePurchaseStore();
+
+  const { categories, fetchDependencies } = useSalesStore();
 
   const [loading, setLoading] = useState(false);
 
-  // Derived form data from purchase & products
-  const initialFormData = useMemo(() => {
-    if (!purchase)
-      return { date: "", distributeurId: "", status: "", items: [] };
-    const items = (purchase.products || []).map((p: any) => {
-      const prod = products.find(
-        (pr: any) => pr.id.toString() === p.product_id.toString(),
-      );
-      return {
-        product_id: p.product_id.toString(),
-        quantity: p.quantity,
-        unit_price: prod?.unit_price ?? prod?.price_factory ?? 0,
+  const [gridFilters, setGridFilters] = useState({
+    search: "",
+    category: "all",
+    page: 1,
+  });
+
+  const initialHeader = purchase
+    ? {
+        distributeurId: purchase.distributeur_id?.toString() || "",
+        date: purchase.date?.split("T")[0] || "",
+        status: purchase.status || "en_cours",
+      }
+    : {
+        distributeurId: "",
+        date: "",
+        status: "en_cours",
       };
-    });
+
+  const initialLocalQtys = purchase?.products
+    ? purchase.products.reduce(
+        (acc, p) => {
+          acc[p.product_id] = p.quantity;
+          return acc;
+        },
+        {} as Record<number, number>,
+      )
+    : {};
+
+  const [header, setHeader] = useState(initialHeader);
+  const [localQtys, setLocalQtys] = useState(initialLocalQtys);
+
+  useEffect(() => {
+    if (open && purchase?.id) {
+      fetchDependencies();
+      fetchPurchaseMatrix({
+        ...gridFilters,
+        purchase_id: purchase.id,
+        pageSize: 25,
+      });
+    }
+  }, [open, purchase?.id, gridFilters, fetchPurchaseMatrix, fetchDependencies]);
+
+  const handleQtyChange = (id: number, val: string) => {
+    setLocalQtys((prev) => ({ ...prev, [id]: parseInt(val) || 0 }));
+  };
+
+  const totals = useMemo(() => {
+    let units = 0;
+    let amount = 0;
+
     return {
-      date: purchase.date?.split("T")[0] || "",
-      distributeurId: purchase.distributeur_id?.toString() || "",
-      status: purchase.status || "",
-      items,
+      units: units || Object.values(localQtys).reduce((acc, q) => acc + q, 0),
+      amount: amount || Number(purchase?.montant_total || 0),
     };
-  }, [purchase, products]);
-
-  const [formData, setFormData] = useState(initialFormData);
-
-  // If products or purchase change while modal is open, update formData
-  React.useEffect(() => {
-    setFormData(initialFormData);
-  }, [initialFormData]);
-
-  const calculateTotal = formData.items.reduce(
-    (acc, item) => acc + item.quantity * item.unit_price,
-    0,
-  );
+  }, [localQtys, matrix, purchase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const productsPayload = Object.entries(localQtys)
+      .filter(([_, qty]) => qty > 0)
+      .map(([id, qty]) => ({ product_id: parseInt(id), quantity: qty }));
+
     setLoading(true);
-    const payload = {
-      date: formData.date,
-      status: formData.status,
-      distributorId: parseInt(formData.distributeurId),
-      products: formData.items.map((i) => ({
-        product_id: parseInt(i.product_id),
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-      })),
-    };
-    const success = await updatePurchase(purchase.id, payload);
+    const success = await updatePurchase(purchase.id, {
+      ...header,
+      products: productsPayload,
+    });
     setLoading(false);
     if (success) onClose();
   };
 
-  const handleProductChange = (index: number, val: string) => {
-    const prod = products.find((p: any) => p.id.toString() === val);
-    setFormData((prev) => {
-      const items = [...prev.items];
-      items[index] = {
-        ...items[index],
-        product_id: val,
-        unit_price: prod?.unit_price ?? 0,
-      };
-      return { ...prev, items };
-    });
-  };
-
-  const handleQuantityChange = useCallback((index: number, val: string) => {
-    const qty = parseInt(val) || 0;
-    setFormData((prev) => {
-      const items = [...prev.items];
-      items[index] = { ...items[index], quantity: qty };
-      return { ...prev, items };
-    });
-  }, []);
-
-  const handleAddItem = () => {
-    setFormData((prev) => ({
-      ...prev,
-      items: [...prev.items, { product_id: "", quantity: 1, unit_price: 0 }],
-    }));
-  };
-
-  const statusStyles: Record<string, string> = {
-    en_cours: "bg-amber-50 text-amber-700 border-amber-200",
-    complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    annulee: "bg-red-50 text-red-700 border-red-200",
-  };
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
         <DialogHeader className="p-5 border-b bg-white">
-          <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
-            <Edit className="w-5 h-5 text-amir-blue" /> Modifier
-            Approvisionnement #{purchase?.id}
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Edit className="w-5 h-5 text-amir-blue" /> Modifier l&apos;Achat #
+            {purchase?.id}
           </DialogTitle>
         </DialogHeader>
 
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col flex-1 overflow-hidden bg-zinc-50/50"
+          className="flex flex-col flex-1 overflow-hidden"
         >
-          <div className="p-5 space-y-5 overflow-y-auto">
-            {/* Header Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white rounded-lg border border-zinc-200 shadow-sm">
+          <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-zinc-50/50">
+            <div className="p-4 bg-white rounded-xl border border-zinc-200 grid grid-cols-1 sm:grid-cols-3 gap-6 shadow-sm">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-zinc-500 uppercase">
+                <Label className="text-[11px] font-black uppercase text-zinc-400 ml-1">
                   Date
                 </Label>
                 <Input
                   type="date"
-                  value={formData.date}
+                  value={header.date}
                   onChange={(e) =>
-                    setFormData({ ...formData, date: e.target.value })
+                    setHeader({ ...header, date: e.target.value })
                   }
+                  className="h-10"
                 />
               </div>
-
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-zinc-500 uppercase">
+                <Label className="text-[11px] font-black uppercase text-zinc-400 ml-1">
                   Distributeur
                 </Label>
                 <Select
-                  value={formData.distributeurId}
+                  value={header.distributeurId}
                   onValueChange={(v) =>
-                    setFormData({ ...formData, distributeurId: v })
+                    setHeader({ ...header, distributeurId: v })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {distributors.map((d: any) => (
+                    {distributors.map((d) => (
                       <SelectItem key={d.id} value={d.id.toString()}>
                         {d.nom}
                       </SelectItem>
@@ -246,102 +176,193 @@ export function EditPurchaseModal({
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-zinc-500 uppercase">
+                <Label className="text-[11px] font-black uppercase text-zinc-400 ml-1">
                   Statut
                 </Label>
                 <Select
-                  value={formData.status}
-                  onValueChange={(v) => setFormData({ ...formData, status: v })}
+                  value={header.status}
+                  onValueChange={(v) => setHeader({ ...header, status: v })}
                 >
-                  <SelectTrigger
-                    className={`border ${statusStyles[formData.status]}`}
-                  >
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en_cours">🟡 En cours</SelectItem>
-                    <SelectItem value="complete">🟢 Validé</SelectItem>
-                    <SelectItem value="annulee">🔴 Annulé</SelectItem>
+                    <SelectItem value="complete">🟢 Validée</SelectItem>
+                    <SelectItem value="annulee">🔴 Annulée</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Items Table */}
-            <div className="bg-white border rounded-lg overflow-hidden flex flex-col shadow-sm">
-              <div className="bg-zinc-50/50 px-4 py-2 border-b flex justify-between items-center">
-                <span className="font-bold text-sm text-zinc-600">
-                  Lignes de commande
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleAddItem}
-                  className="h-7 text-amir-blue"
-                >
-                  + Ajouter
-                </Button>
+            <div className="flex flex-col sm:flex-row gap-3 items-center bg-white p-3 rounded-xl border border-zinc-200 shadow-sm">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  placeholder="Filtrer les produits..."
+                  className="pl-10 h-10 border-zinc-200"
+                  value={gridFilters.search}
+                  onChange={(e) =>
+                    setGridFilters({
+                      ...gridFilters,
+                      search: e.target.value,
+                      page: 1,
+                    })
+                  }
+                />
               </div>
+              <Select
+                value={gridFilters.category}
+                onValueChange={(v) =>
+                  setGridFilters({ ...gridFilters, category: v, page: 1 })
+                }
+              >
+                <SelectTrigger className="w-full sm:w-[220px] h-10">
+                  <SelectValue placeholder="Famille" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes Familles</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden relative shadow-sm">
+              {isMatrixLoading && (
+                <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center backdrop-blur-[1px]">
+                  <Loader2 className="animate-spin text-amir-blue" />
+                </div>
+              )}
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-zinc-50 border-b">
                   <TableRow>
-                    <TableHead className="text-xs pl-4">Produit</TableHead>
-                    <TableHead className="text-xs">Prix</TableHead>
-                    <TableHead className="text-xs">Qté</TableHead>
-                    <TableHead className="text-xs text-right pr-4">
-                      Total
+                    <TableHead className="pl-6 h-12">Produit</TableHead>
+                    <TableHead className="h-12">Prix Usine</TableHead>
+                    <TableHead className="w-[160px] text-center h-12 pr-6">
+                      Quantité
                     </TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {formData.items.map((item, index) => (
-                    <PurchaseRowItem
-                      key={index}
-                      index={index}
-                      item={item}
-                      products={products}
-                      onProductChange={handleProductChange}
-                      onQtyChange={handleQuantityChange}
-                      onRemove={(idx: number) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          items: prev.items.filter((_, i) => i !== idx),
-                        }))
-                      }
-                      isRemovable={formData.items.length > 1}
-                    />
-                  ))}
+                  {matrix.map((p) => {
+                    const currentQty = localQtys[p.product_id] ?? 0;
+                    const isSelected = currentQty > 0;
+                    return (
+                      <TableRow
+                        key={p.product_id}
+                        className={cn(
+                          "transition-all duration-200",
+                          isSelected
+                            ? "bg-amir-blue/[0.03] hover:bg-amir-blue/[0.06]"
+                            : "hover:bg-zinc-50",
+                        )}
+                      >
+                        <TableCell className="pl-6 py-3">
+                          <p
+                            className={cn(
+                              "text-sm transition-colors",
+                              isSelected
+                                ? "font-bold text-zinc-900"
+                                : "font-medium text-zinc-600",
+                            )}
+                          >
+                            {p.designation}
+                          </p>
+                          <p className="text-[10px] text-zinc-400 font-mono tracking-wider">
+                            {p.code}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-sm font-medium text-zinc-500">
+                          {p.price_factory.toLocaleString()}{" "}
+                          <span className="text-[10px]">DA</span>
+                        </TableCell>
+                        <TableCell className="py-2 pr-6">
+                          <Input
+                            type="number"
+                            className={cn(
+                              "text-center h-9 transition-all border-zinc-200",
+                              isSelected
+                                ? "font-black text-amir-blue border-amir-blue ring-2 ring-amir-blue/10 bg-white"
+                                : "text-zinc-300 font-normal bg-transparent",
+                            )}
+                            value={currentQty || ""}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) =>
+                              handleQtyChange(p.product_id, e.target.value)
+                            }
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+              <div className="p-3 border-t bg-zinc-50/50">
+                <PaginationControl
+                  total={matrixTotal}
+                  limit={25}
+                  page={gridFilters.page}
+                  onPageChange={(p) =>
+                    setGridFilters({ ...gridFilters, page: p })
+                  }
+                />
+              </div>
             </div>
           </div>
 
-          <DialogFooter className="bg-white p-4 border-t flex items-center justify-between">
-            <div className="text-2xl font-bold text-amir-blue">
-              {calculateTotal.toLocaleString()}{" "}
-              <span className="text-sm font-normal text-zinc-400">DA</span>
+          <DialogFooter className="bg-white p-5 border-t flex items-center justify-between">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-3">
+                <div className="bg-amir-blue/10 p-2 rounded-lg">
+                  <PackageCheck className="w-5 h-5 text-amir-blue" />
+                </div>
+                <div className="flex flex-col leading-none">
+                  <span className="text-xs font-bold text-zinc-400 uppercase mb-1">
+                    Total Unités
+                  </span>
+                  <span className="text-xl font-black text-amir-blue">
+                    {totals.units.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-100 p-2 rounded-lg">
+                  <Banknote className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="flex flex-col leading-none">
+                  <span className="text-xs font-bold text-zinc-400 uppercase mb-1">
+                    Montant
+                  </span>
+                  <span className="text-xl font-black text-emerald-600">
+                    {totals.amount.toLocaleString()}{" "}
+                    <span className="text-sm">DA</span>
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                className="text-zinc-500"
+              >
                 Annuler
               </Button>
               <Button
                 type="submit"
-                disabled={
-                  loading ||
-                  !formData.distributeurId ||
-                  formData.items.some((i) => !i.product_id)
-                }
-                className="bg-amir-blue"
+                className="bg-amir-blue hover:bg-amir-blue-hover min-w-[160px] font-bold h-11"
+                disabled={loading}
               >
                 {loading ? (
-                  <Loader2 className="animate-spin h-4 w-4" />
+                  <Loader2 className="animate-spin h-5 w-5" />
                 ) : (
-                  "Mettre à jour"
+                  "Enregistrer"
                 )}
               </Button>
             </div>

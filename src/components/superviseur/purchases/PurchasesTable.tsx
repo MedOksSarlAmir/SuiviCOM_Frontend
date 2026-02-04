@@ -78,7 +78,7 @@ const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
           <PopoverContent className="w-[450px] p-0 shadow-2xl" align="center">
             <div className="bg-zinc-900 text-white px-4 py-3 flex justify-between items-center rounded-t-md">
               <span className="text-xs font-bold uppercase tracking-widest">
-                Détail de l&apos;approvisionnement
+                Détail de l&apos;achat
               </span>
               <span className="text-[10px] bg-zinc-700 px-2 py-1 rounded">
                 Total: {productData.totalQty} Unités

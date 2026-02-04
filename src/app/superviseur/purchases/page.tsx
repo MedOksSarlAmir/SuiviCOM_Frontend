@@ -43,7 +43,7 @@ export default function PurchasesPage() {
               {/* Table Action Bar */}
               <div className="w-full flex justify-between items-center p-4 border-b border-zinc-100">
                 <h3 className="font-semibold text-zinc-700 px-2">
-                  Liste des approvisionnements
+                  Liste des achats
                 </h3>
                 <NewPurchaseModal />
               </div>
