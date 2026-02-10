@@ -80,12 +80,12 @@ export function VisitsMatrix({ filters }: any) {
               <TableCell className="border-r py-3 pl-6">
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold text-zinc-800">
-                    {v.vendor_name}
+                    <span className="text-amir-blue/80 font-bold">
+                      {v.vendor_code}
+                    </span>{" "}
+                    - {v.vendor_name}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-zinc-400 font-mono">
-                      {v.vendor_code}
-                    </span>
                     <Badge
                       variant="outline"
                       className="text-[9px] px-1 h-3.5 uppercase"

@@ -28,20 +28,22 @@ export default function VisitsPage() {
     page: 1,
   });
 
+  // 1. Initial Load
   useEffect(() => {
     fetchDependencies();
   }, [fetchDependencies]);
 
-  // Ensure first distributor is selected by default and never emptied
+  // 2. Set default distributor once they are loaded
   useEffect(() => {
-    if (!filters.distributor_id && distributors.length > 0) {
-      setFilters((f) => ({
-        ...f,
+    if (distributors.length > 0 && !filters.distributor_id) {
+      setFilters((prev) => ({
+        ...prev,
         distributor_id: distributors[0].id.toString(),
       }));
     }
   }, [distributors, filters.distributor_id]);
 
+  // 3. Fetch Matrix when filters change
   useEffect(() => {
     if (filters.distributor_id && filters.date) {
       const delay = setTimeout(() => fetchVisitMatrix(filters), 300);
@@ -49,22 +51,28 @@ export default function VisitsPage() {
     }
   }, [filters, fetchVisitMatrix]);
 
-  const hasSecondaryFilters =
+  const hasActiveFilters =
     filters.search !== "" || filters.vendor_type !== "all";
 
   return (
     <div className="flex-1 flex flex-col min-w-0 h-full bg-zinc-50/50">
       <ModuleHeader
         title="Visites Terrain"
-        subtitle="Suivi de la couverture et performance des vendeurs."
+        subtitle="Performance vendeurs."
         icon={ClipboardCheck}
       />
-
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-4">
-        <div className="max-w-[1400px] mx-auto space-y-4">
-          {/* PRIMARY SELECTION GROUP (Mandatory: Distributor & Date) */}
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+        <div className="max-w-[1400px] mx-auto space-y-6">
           <FilterBar
-            hasActiveFilters={false} // No reset button for primary selection
+            hasActiveFilters={hasActiveFilters}
+            onReset={() =>
+              setFilters((prev) => ({
+                ...prev, // Keep distributor and date
+                search: "",
+                vendor_type: "all",
+                page: 1,
+              }))
+            }
             fields={[
               {
                 label: "Distributeur",
@@ -72,8 +80,12 @@ export default function VisitsPage() {
                 render: (
                   <Select
                     value={filters.distributor_id}
-                    onValueChange={(id) =>
-                      setFilters({ ...filters, distributor_id: id, page: 1 })
+                    onValueChange={(val) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        distributor_id: val,
+                        page: 1,
+                      }))
                     }
                   >
                     <SelectTrigger>
@@ -93,54 +105,40 @@ export default function VisitsPage() {
                 ),
               },
               {
-                label: "Date du Rapport",
+                label: "Date",
                 icon: Calendar,
                 render: (
-                  <div className="relative w-full h-full flex items-center">
-                    <Input
-                      type="date"
-                      value={filters.date}
-                      className="pl-9"
-                      onChange={(e) =>
-                        setFilters({
-                          ...filters,
-                          date: e.target.value,
-                          page: 1,
-                        })
-                      }
-                    />
-                    <Calendar className="absolute left-3 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-                  </div>
+                  <Input
+                    type="date"
+                    value={filters.date}
+                    className="cursor-pointer"
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        date: e.target.value,
+                        page: 1,
+                      }))
+                    }
+                  />
                 ),
               },
-            ]}
-          />
-
-          {/* SECONDARY FILTER GROUP (Optional: Type & Search) */}
-          <FilterBar
-            hasActiveFilters={hasSecondaryFilters}
-            onReset={() =>
-              setFilters({
-                ...filters, // Keep distributor_id and date
-                search: "",
-                vendor_type: "all",
-                page: 1,
-              })
-            }
-            fields={[
               {
-                label: "Type Vendeur",
+                label: "Type",
                 icon: Users,
                 isActive: filters.vendor_type !== "all",
                 render: (
                   <Select
                     value={filters.vendor_type}
-                    onValueChange={(v) =>
-                      setFilters({ ...filters, vendor_type: v, page: 1 })
+                    onValueChange={(val) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        vendor_type: val,
+                        page: 1,
+                      }))
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Tous les types" />
+                      <SelectValue placeholder="Tous" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous les types</SelectItem>
@@ -157,14 +155,14 @@ export default function VisitsPage() {
                 isActive: filters.search !== "",
                 render: (
                   <Input
-                    placeholder="Code ou Nom..."
+                    placeholder="Code / Nom..."
                     value={filters.search}
                     onChange={(e) =>
-                      setFilters({
-                        ...filters,
+                      setFilters((prev) => ({
+                        ...prev,
                         search: e.target.value,
                         page: 1,
-                      })
+                      }))
                     }
                   />
                 ),
@@ -172,7 +170,6 @@ export default function VisitsPage() {
             ]}
           />
 
-          {/* DATA TABLE AREA */}
           {filters.distributor_id ? (
             <div className="flex flex-col border border-zinc-200 rounded-xl overflow-hidden shadow-sm animate-in fade-in duration-500">
               <VisitsMatrix filters={filters} />
@@ -181,16 +178,15 @@ export default function VisitsPage() {
                   total={total}
                   limit={25}
                   page={filters.page}
-                  onPageChange={(p) => setFilters({ ...filters, page: p })}
+                  onPageChange={(p) =>
+                    setFilters((prev) => ({ ...prev, page: p }))
+                  }
                 />
               </div>
             </div>
           ) : (
             <div className="h-80 flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 rounded-xl bg-white text-zinc-400">
-              <ClipboardCheck className="w-12 h-12 mb-4 opacity-20" />
-              <p className="font-medium">
-                Sélectionnez un distributeur pour afficher les données.
-              </p>
+              <p>Sélectionnez un distributeur.</p>
             </div>
           )}
         </div>

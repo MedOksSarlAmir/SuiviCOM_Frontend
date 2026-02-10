@@ -106,7 +106,6 @@ export const useVisitStore = create<VisitState>((set, get) => ({
       const res = await api.get("/supervisor/visits/matrix", {
         params: {
           ...params,
-          distributor_id: params.distributeur_id,
           pageSize: 25,
         },
       });
