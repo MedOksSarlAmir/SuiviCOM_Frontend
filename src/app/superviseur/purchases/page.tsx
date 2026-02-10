@@ -49,7 +49,7 @@ export default function PurchasesPage() {
 
   const hasActiveFilters =
     filters.search !== "" ||
-    filters.distributeur_id !== "all" ||
+    filters.distributor_id !== "all" ||
     filters.status !== "all" ||
     !!filters.startDate;
 
@@ -67,7 +67,7 @@ export default function PurchasesPage() {
             onReset={() =>
               setFilters({
                 search: "",
-                distributeur_id: "all",
+                distributor_id: "all",
                 status: "all",
                 startDate: "",
                 endDate: "",
@@ -90,11 +90,11 @@ export default function PurchasesPage() {
               {
                 label: "Partenaire",
                 icon: Store,
-                isActive: filters.distributeur_id !== "all",
+                isActive: filters.distributor_id !== "all",
                 render: (
                   <Select
-                    value={filters.distributeur_id}
-                    onValueChange={(v) => setFilters({ distributeur_id: v })}
+                    value={filters.distributor_id}
+                    onValueChange={(v) => setFilters({ distributor_id: v })}
                   >
                     <SelectTrigger className="h-9 bg-zinc-50 border-none">
                       <SelectValue className="truncate" />

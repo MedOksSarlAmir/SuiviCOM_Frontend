@@ -33,7 +33,7 @@ interface PurchaseState {
     endDate?: string;
     search?: string;
     status?: string;
-    distributeur_id?: string;
+    distributor_id?: string;
   };
   setLimit: (limit: number) => void;
   setPage: (page: number) => void;
@@ -59,7 +59,7 @@ const INITIAL_STATE = {
   limit: 20,
   isLoading: false,
   isDependenciesLoaded: false,
-  filters: { search: "", status: "all", distributeur_id: "all" },
+  filters: { search: "", status: "all", distributor_id: "all" },
   matrix: [],
   matrixTotal: 0,
   isMatrixLoading: false,
@@ -107,15 +107,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         params: {
           page,
           pageSize: limit,
-          search: filters.search,
-          status: filters.status,
-          startDate: filters.startDate,
-          endDate: filters.endDate,
-          // Changed parameter name
-          distributor_id:
-            filters.distributeur_id === "all"
-              ? undefined
-              : filters.distributeur_id,
+          ...filters,
         },
       });
 
