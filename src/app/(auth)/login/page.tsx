@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAuthStore } from "@/stores/authStore"; // Ensure this matches your path
+import { useAuthStore } from "@/stores/AuthStore";
 import { useRouter } from "next/navigation";
-import api from "@/services/api"; // Changed to @/lib/api based on our earlier setup
+import api from "@/services/api";
 import {
   Card,
   CardContent,
@@ -14,8 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CloudCog, Loader2, Lock, ShieldCheck } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Image from "next/image";
+import { getRedirectPath } from "@/lib/utils";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -35,18 +36,12 @@ export default function LoginPage() {
     try {
       const res = await api.post("/auth/login", { email, password });
 
-      // Store in Zustand + Cookies (Handled by store/authStore.ts)
       setAuth(res.data.user, res.data.token, true);
 
-      // All roles now go to the single entry point: /superviseur
-      router.push("/superviseur");
-      router.refresh(); // Forces Next.js to re-evaluate the proxy/auth state
+      router.push(getRedirectPath(res.data.user.role));
+      router.refresh();
     } catch (err: any) {
-      console.error("Login Error:", err);
-      setError(
-        err.response?.data?.message ||
-          "Identifiants invalides ou erreur serveur",
-      );
+      setError(err.response?.data?.message || "Identifiants invalides");
     } finally {
       setLoading(false);
     }
@@ -55,12 +50,7 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-zinc-50 px-4">
       <div className="absolute top-10 flex items-center gap-2">
-        <Image
-          src="/logo.png"
-          width={150}
-          height={150}
-          alt="Picture of the author"
-        />
+        <Image src="/logo.png" width={150} height={150} alt="Amir Logo" />
       </div>
 
       <Card className="w-full max-w-md shadow-xl border-zinc-200">
@@ -95,9 +85,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Mot de passe</Label>
-              </div>
+              <Label htmlFor="password">Mot de passe</Label>
               <Input
                 id="password"
                 name="password"

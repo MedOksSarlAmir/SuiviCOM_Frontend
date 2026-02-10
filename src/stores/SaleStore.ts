@@ -7,42 +7,86 @@ export interface CategoryWithFormats {
   name: string;
   formats: string[];
 }
+
 export interface WeeklyProduct {
   product_id: number;
-  designation: string;
+  name: string;
   code: string;
   active: boolean;
   price: number;
   days: number[];
 }
 
+// Utility to find the nearest Saturday (Start of the selling week)
+const getSaturday = (selectedDate: Date) => {
+  const d = new Date(selectedDate);
+  const day = d.getDay();
+  const diff = day === 6 ? 0 : -(day + 1);
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split("T")[0];
+};
+
+interface SalesFilters {
+  distributor_id: string;
+  vendor_id: string;
+  start_date: string;
+  category: string;
+  format: string;
+  product_type: string;
+  search: string;
+  page: number;
+}
+
 interface SalesState {
+  // Data
   weeklyData: WeeklyProduct[];
   weeklyDates: string[];
   weeklyStatuses: Record<string, string>;
-  isSavingCell: Record<string, boolean>;
   total: number;
   isLoading: boolean;
+
+  // Lookups
   distributors: any[];
   currentVendors: any[];
   categories: CategoryWithFormats[];
   productTypes: any[];
   vendorsCache: Record<number, any[]>;
-  isDependenciesLoaded: boolean;
+
+  // UI State
+  isSavingCell: Record<string, boolean>;
   isErrorCell: Record<string, boolean>;
+  isDependenciesLoaded: boolean;
+
+  // Filters (Persisted in store)
+  filters: SalesFilters;
+
+  // Actions
+  setFilters: (filters: Partial<SalesFilters>) => void;
   fetchDependencies: () => Promise<void>;
   fetchVendorsByDistributor: (id: number) => Promise<void>;
-  fetchWeeklyMatrix: (params: any) => Promise<void>;
+  fetchWeeklyMatrix: (params: SalesFilters) => Promise<void>;
   upsertSaleItem: (payload: any) => Promise<void>;
   updateSaleStatus: (payload: any) => Promise<void>;
   reset: () => void;
 }
+
+const INITIAL_FILTERS: SalesFilters = {
+  distributor_id: "",
+  vendor_id: "",
+  start_date: getSaturday(new Date()),
+  category: "all",
+  format: "all",
+  product_type: "all",
+  search: "",
+  page: 1,
+};
 
 const INITIAL_STATE = {
   weeklyData: [],
   weeklyDates: [],
   weeklyStatuses: {},
   isSavingCell: {},
+  isErrorCell: {},
   total: 0,
   isLoading: false,
   distributors: [],
@@ -50,56 +94,95 @@ const INITIAL_STATE = {
   categories: [],
   productTypes: [],
   vendorsCache: {},
-  isErrorCell: {},
   isDependenciesLoaded: false,
 };
 
 export const useSalesStore = create<SalesState>((set, get) => ({
   ...INITIAL_STATE,
+  filters: INITIAL_FILTERS,
+
+  setFilters: (newFilters) => {
+    set((state) => ({
+      filters: { ...state.filters, ...newFilters },
+    }));
+  },
 
   fetchDependencies: async () => {
-    if (get().isDependenciesLoaded) return;
-    try {
-      const [dRes, cRes, tRes] = await Promise.all([
-        api.get("/supervisor/distributors"),
-        api.get("/supervisor/categories-with-formats"),
-        api.get("/supervisor/types"),
-      ]);
-      set({
-        distributors: dRes.data,
-        categories: cRes.data,
-        productTypes: tRes.data,
-        isDependenciesLoaded: true,
-      });
-    } catch (err) {
-      console.error(err);
+    // Only fetch metadata once
+    if (!get().isDependenciesLoaded) {
+      try {
+        const [dRes, cRes, tRes] = await Promise.all([
+          api.get("/shared/distributors"),
+          api.get("/shared/categories-with-formats"),
+          api.get("/shared/admin-metadata"),
+        ]);
+
+        set({
+          distributors: dRes.data,
+          categories: cRes.data,
+          productTypes: tRes.data.product_types,
+          isDependenciesLoaded: true,
+        });
+
+        // AUTO-SELECT FIRST DISTRIBUTOR if none is selected
+        const currentFilters = get().filters;
+        if (!currentFilters.distributor_id && dRes.data.length > 0) {
+          const firstDistId = dRes.data[0].id.toString();
+          get().setFilters({ distributor_id: firstDistId });
+          get().fetchVendorsByDistributor(parseInt(firstDistId));
+        }
+      } catch (err) {
+        console.error("Failed to fetch dependencies", err);
+      }
     }
   },
 
   fetchVendorsByDistributor: async (id) => {
+    const updateVendorSelection = (vendors: any[]) => {
+      const currentVendorId = get().filters.vendor_id;
+      // If no vendor selected, or current vendor doesn't belong to this distributor, select the first one
+      const isValid = vendors.some((v) => v.id.toString() === currentVendorId);
+      if ((!currentVendorId || !isValid) && vendors.length > 0) {
+        get().setFilters({ vendor_id: vendors[0].id.toString() });
+      }
+    };
+
     if (get().vendorsCache[id]) {
-      set({ currentVendors: get().vendorsCache[id] });
+      const cached = get().vendorsCache[id];
+      set({ currentVendors: cached });
+      updateVendorSelection(cached);
       return;
     }
+
     try {
-      const res = await api.get(`/supervisor/vendors/distributor/${id}`);
+      const res = await api.get(`/shared/vendors/distributor/${id}`);
       set((state) => ({
         vendorsCache: { ...state.vendorsCache, [id]: res.data },
         currentVendors: res.data,
       }));
+      updateVendorSelection(res.data);
     } catch {
       set({ currentVendors: [] });
     }
   },
 
   fetchWeeklyMatrix: async (params) => {
+    if (!params.distributor_id || !params.vendor_id) return;
+
     set({ isLoading: true });
     try {
-      const res = await api.get("/sales/weekly-matrix", {
+      const res = await api.get("/supervisor/sales/matrix", {
         params: { ...params, pageSize: 25 },
       });
+
+      const mappedData = res.data.data.map((p: any) => ({
+        ...p,
+        name: p.name,
+        price: p.unit_price,
+      }));
+
       set({
-        weeklyData: res.data.data,
+        weeklyData: mappedData,
         weeklyDates: res.data.dates,
         weeklyStatuses: res.data.statuses || {},
         total: res.data.total,
@@ -118,22 +201,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       isErrorCell: { ...s.isErrorCell, [cellKey]: false },
     }));
     try {
-      await api.post("/sales/upsert-item", payload);
-      const { weeklyData, weeklyDates, weeklyStatuses } = get();
-      const dayIdx = weeklyDates.indexOf(date);
-      if (dayIdx !== -1) {
-        const newData = weeklyData.map((p) => {
-          if (p.product_id === product_id) {
-            const newDays = [...p.days];
-            newDays[dayIdx] = payload.quantity;
-            return { ...p, days: newDays };
-          }
-          return p;
-        });
-        const newStatuses = { ...weeklyStatuses };
-        if (!newStatuses[date]) newStatuses[date] = "complete";
-        set({ weeklyData: newData, weeklyStatuses: newStatuses });
-      }
+      await api.post("/supervisor/sales/upsert", payload);
       toast.success("Quantité mise à jour", { duration: 2000 });
     } catch (err: any) {
       set((s) => ({ isErrorCell: { ...s.isErrorCell, [cellKey]: true } }));
@@ -144,17 +212,19 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   },
 
   updateSaleStatus: async (payload) => {
-    const { date, status } = payload;
     try {
-      await api.post("/sales/update-status", payload);
+      await api.post("/supervisor/sales/status", payload);
       set((state) => ({
-        weeklyStatuses: { ...state.weeklyStatuses, [date]: status },
+        weeklyStatuses: {
+          ...state.weeklyStatuses,
+          [payload.date]: payload.status,
+        },
       }));
-      toast.success(`Vente marquée comme ${status}`);
+      toast.success(`Statut mis à jour`);
     } catch {
       toast.error("Erreur de changement de statut");
     }
   },
 
-  reset: () => set(INITIAL_STATE),
+  reset: () => set({ ...INITIAL_STATE, filters: INITIAL_FILTERS }),
 }));

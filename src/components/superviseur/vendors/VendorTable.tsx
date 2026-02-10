@@ -42,7 +42,7 @@ const VendorRow = memo(({ vendor, onEdit, onDelete }: any) => (
       </Badge>
     </TableCell>
     <TableCell className="text-zinc-500 text-sm">
-      {vendor.distributor_nom}
+      {vendor.distributor_name}
     </TableCell>
     <TableCell className="text-center">
       {vendor.active ? (
@@ -90,7 +90,6 @@ VendorRow.displayName = "VendorRow";
 
 export function VendorTable({ onEdit }: { onEdit: (v: any) => void }) {
   const { vendors, isLoading, deleteVendor } = useVendorStore();
-
   const handleDelete = async (vendor: any) => {
     if (confirm(`Voulez-vous vraiment supprimer le vendeur ${vendor.nom} ?`)) {
       const result = await deleteVendor(vendor.id);

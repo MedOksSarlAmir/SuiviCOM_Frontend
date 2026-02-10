@@ -17,11 +17,7 @@ interface InventoryState {
   setLimit: (limit: number) => void;
   setFilters: (filters: Partial<InventoryState["filters"]>) => void;
   fetchInventory: () => Promise<void>;
-  fetchHistory: (
-    distId: number,
-    prodId: number,
-    reset?: boolean,
-  ) => Promise<void>;
+  fetchHistory: (distId: number, prodId: number, reset?: boolean) => Promise<void>;
   createAdjustment: (data: any) => Promise<boolean>;
   deleteAdjustment: (id: number) => Promise<boolean>;
   refreshGlobalInventory: () => Promise<boolean>;
@@ -41,17 +37,12 @@ const INITIAL_STATE = {
   isLoadingHistory: false,
 };
 
+
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   ...INITIAL_STATE,
 
-  setPage: (page) => {
-    set({ page });
-    get().fetchInventory();
-  },
-  setLimit: (limit) => {
-    set({ limit, page: 1 });
-    get().fetchInventory();
-  },
+  setPage: (page) => { set({ page }); get().fetchInventory(); },
+  setLimit: (limit) => { set({ limit, page: 1 }); get().fetchInventory(); },
   setFilters: (newFilters) => {
     set((state) => ({ filters: { ...state.filters, ...newFilters }, page: 1 }));
     get().fetchInventory();
@@ -62,10 +53,22 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     if (!filters.distributor_id) return;
     set({ isLoading: true });
     try {
-      const res = await api.get(`/inventory/${filters.distributor_id}`, {
-        params: { search: filters.search || undefined, page, pageSize: limit },
+      // Changed from /inventory/${id} to /supervisor/inventory/stock?distributor_id=${id}
+      const res = await api.get(`/supervisor/inventory/stock`, {
+        params: { 
+          distributor_id: filters.distributor_id,
+          search: filters.search || undefined, 
+          page, 
+          pageSize: limit 
+        },
       });
-      set({ items: res.data.data, total: res.data.total, isLoading: false });
+      // Map 'quantity' back to 'stock'
+      const items = res.data.data.map((item: any) => ({
+        ...item,
+        name: item.product_name,
+        stock: item.quantity
+      }));
+      set({ items, total: res.data.total, isLoading: false });
     } catch {
       set({ isLoading: false, items: [] });
     }
@@ -75,11 +78,18 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const pageToFetch = reset ? 1 : get().historyPage;
     set({ isLoadingHistory: true });
     try {
-      const res = await api.get(`/inventory/history/${distId}/${prodId}`, {
+      // Changed route to /supervisor prefix
+      const res = await api.get(`/supervisor/inventory/history/${distId}/${prodId}`, {
         params: { page: pageToFetch, pageSize: 10 },
       });
+      
+      const historyData = res.data.data.map((h: any) => ({
+        ...h,
+        qte: h.quantity // Map quantity back to qte
+      }));
+
       set((state) => ({
-        history: reset ? res.data.data : [...state.history, ...res.data.data],
+        history: reset ? historyData : [...state.history, ...historyData],
         historyTotal: res.data.total,
         historyPage: pageToFetch + 1,
         isLoadingHistory: false,
@@ -91,7 +101,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   createAdjustment: async (data) => {
     try {
-      await api.post(`/inventory/adjust/${data.product_id}`, data);
+      // Adjusted route and payload structure
+      await api.post(`/supervisor/inventory/adjust`, data);
       toast.success("Ajustement de stock enregistré");
       get().fetchInventory();
       return true;
@@ -103,7 +114,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   deleteAdjustment: async (id) => {
     try {
-      await api.delete(`/inventory/adjust/${id}`);
+      // Adjusted route
+      await api.delete(`/supervisor/inventory/adjust/${id}`);
       toast.success("Ajustement supprimé");
       get().fetchInventory();
       return true;
@@ -115,7 +127,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   refreshGlobalInventory: async () => {
     try {
-      await api.post("/inventory/refresh");
+      await api.post("/supervisor/inventory/refresh");
       toast.success("Inventaire global synchronisé");
       get().fetchInventory();
       return true;

@@ -1,24 +1,33 @@
 "use client";
-import { useAuthStore } from "@/stores/authStore";
-import { ShoppingCart } from "lucide-react";
+import { useAuthStore } from "@/stores/AuthStore";
+import { LucideIcon } from "lucide-react";
 
-export function SalesHeader() {
+interface ModuleHeaderProps {
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+  iconColor?: string;
+}
+
+export function ModuleHeader({
+  title,
+  subtitle,
+  icon: Icon,
+  iconColor = "text-amir-blue",
+}: ModuleHeaderProps) {
   const { user } = useAuthStore();
-
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center px-8 sticky top-0 z-10">
       <div className="flex flex-row items-center justify-between w-full">
         <div className="flex items-center gap-4">
-          <div className="bg-amir-blue/10 p-2.5 rounded-lg">
-            <ShoppingCart className="w-6 h-6 text-amir-blue" />
+          <div className={`bg-zinc-100 p-2.5 rounded-lg`}>
+            <Icon className={`w-6 h-6 ${iconColor}`} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
-              Gestion des Ventes
+              {title}
             </h1>
-            <p className="text-zinc-500 text-sm">
-              Suivi et historique des transactions commerciales.
-            </p>
+            <p className="text-zinc-500 text-sm">{subtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-6">
@@ -30,7 +39,6 @@ export function SalesHeader() {
               Session Active
             </p>
           </div>
-
           <div className="flex flex-col items-start pl-6 border-l border-zinc-200">
             <p className="text-[11px] text-amir-blue font-bold uppercase tracking-tighter">
               {user?.role}

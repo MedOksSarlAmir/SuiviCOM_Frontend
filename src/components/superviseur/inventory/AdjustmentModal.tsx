@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Scale, ArrowRight, Info } from "lucide-react";
+import { Loader2, Scale, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function AdjustmentModal({
   product,
@@ -20,19 +21,15 @@ export function AdjustmentModal({
   onClose,
 }: any) {
   const [loading, setLoading] = useState(false);
+  const [val, setVal] = useState("");
+  const [note, setNote] = useState("");
   const createAdjustment = useInventoryStore((s) => s.createAdjustment);
 
-  const [adjustmentValue, setAdjustmentValue] = useState("");
-  const [note, setNote] = useState("");
-
-  const initialStock = product?.stock || 0;
-  const delta = parseInt(adjustmentValue) || 0;
-  const finalStock = initialStock + delta;
+  const delta = parseInt(val) || 0;
+  const final = (product?.stock || 0) + delta;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (delta === 0) return;
-
     setLoading(true);
     const success = await createAdjustment({
       date: new Date().toISOString(),
@@ -41,123 +38,86 @@ export function AdjustmentModal({
       quantity: delta,
       note: note,
     });
-
     setLoading(false);
-    if (success) {
-      setAdjustmentValue("");
-      setNote("");
-      onClose();
-    }
+    if (success) onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md border-t-4 border-t-amber-500">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Scale className="text-amber-500 w-6 h-6" />
-            Correction d&apos;inventaire
+          <DialogTitle className="flex items-center gap-2">
+            <Scale className="text-amber-500 w-5 h-5" /> Correction de stock
           </DialogTitle>
-          <div className="bg-zinc-50 p-3 rounded-md border mt-2">
-            <p className="text-xs text-zinc-500 font-bold uppercase tracking-tight">
-              Produit sélectionné
-            </p>
-            <p className="text-sm font-semibold text-amir-blue">
-              {product?.designation}
-            </p>
-            <p className="text-[10px] text-zinc-400">Code: {product?.code}</p>
+          <div className="bg-zinc-50 p-2 border rounded mt-2 text-xs font-medium">
+            {product?.name}{" "}
+            <span className="text-zinc-400 font-mono ml-2">
+              ({product?.code})
+            </span>
           </div>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="space-y-6 pt-4">
-          {/* Visualisation du changement */}
-          <div className="flex items-center justify-between p-4 bg-zinc-900 text-white rounded-xl shadow-inner">
+        <form onSubmit={onSubmit} className="space-y-6 pt-2">
+          <div className="flex items-center justify-around p-4 bg-zinc-900 text-white rounded-lg">
             <div className="text-center">
-              <p className="text-[10px] text-zinc-400 uppercase font-bold">
-                Actuel
-              </p>
-              <p className="text-2xl font-mono">{initialStock}</p>
+              <p className="text-[10px] text-zinc-400 uppercase">Actuel</p>
+              <p className="text-xl font-mono">{product?.stock}</p>
             </div>
-
-            <ArrowRight className="text-zinc-500" />
-
-            <div className="text-center px-4 py-1 bg-zinc-800 rounded-lg border border-zinc-700">
-              <p className="text-[10px] text-zinc-400 uppercase font-bold">
-                Correction
-              </p>
+            <ArrowRight className="text-zinc-600" />
+            <div className="text-center">
+              <p className="text-[10px] text-zinc-400 uppercase">Delta</p>
               <p
-                className={`text-2xl font-mono font-bold ${delta > 0 ? "text-emerald-400" : delta < 0 ? "text-red-400" : "text-zinc-500"}`}
+                className={cn(
+                  "text-xl font-mono font-bold",
+                  delta > 0 ? "text-emerald-400" : "text-red-400",
+                )}
               >
                 {delta > 0 ? `+${delta}` : delta}
               </p>
             </div>
-
-            <ArrowRight className="text-zinc-500" />
-
+            <ArrowRight className="text-zinc-600" />
             <div className="text-center">
-              <p className="text-[10px] text-zinc-400 uppercase font-bold">
-                Nouveau
-              </p>
-              <p className="text-2xl font-mono font-black text-amber-400">
-                {finalStock}
+              <p className="text-[10px] text-zinc-400 uppercase">Final</p>
+              <p className="text-xl font-mono font-bold text-amber-400">
+                {final}
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-bold">
-                Valeur de l&apos;ajustement
-              </Label>
+            <div className="space-y-1.5">
+              <Label>Valeur (+/-)</Label>
               <Input
                 type="number"
-                placeholder="Ex: 10 pour ajouter, -5 pour retirer"
-                value={adjustmentValue}
-                onChange={(e) => setAdjustmentValue(e.target.value)}
-                className="h-12 text-lg font-mono focus-visible:ring-amber-500"
+                value={val}
+                onChange={(e) => setVal(e.target.value)}
                 required
               />
-              <p className="text-[11px] text-zinc-500 flex items-center gap-1">
-                <Info className="w-3 h-3" />
-                Utilisez un signe <b>moins (-)</b> pour diminuer le stock.
-              </p>
             </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-bold">Justification (Note)</Label>
+            <div className="space-y-1.5">
+              <Label>Justification</Label>
               <Input
-                placeholder="Pourquoi cette correction ? (ex: Erreur saisie, casse...)"
+                placeholder="Ex: Casse, Erreur saisie..."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 required
                 minLength={5}
-                className="bg-zinc-50"
               />
             </div>
           </div>
 
           <DialogFooter>
-            <div className="flex flex-col w-full gap-2">
-              <Button
-                type="submit"
-                className="w-full h-11 bg-amir-blue hover:bg-amir-blue-hover text-white font-bold"
-                disabled={loading || delta === 0 || note.length < 5}
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin mr-2" />
-                ) : (
-                  "Appliquer la correction"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onClose}
-                className="text-zinc-500 text-xs"
-              >
-                Annuler
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              className="w-full bg-amir-blue"
+              disabled={loading || delta === 0 || note.length < 5}
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "Appliquer la correction"
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

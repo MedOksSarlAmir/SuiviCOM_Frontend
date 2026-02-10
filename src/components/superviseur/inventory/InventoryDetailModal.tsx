@@ -65,7 +65,7 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
               </span>
             </div>
             <DialogTitle className="text-xl font-bold flex justify-between items-center text-black">
-              <span>{product?.designation}</span>
+              <span>{product?.name}</span>
               <Badge className="bg-amir-blue text-white border-none hover:bg-amir-blue">
                 {historyTotal} opérations
               </Badge>

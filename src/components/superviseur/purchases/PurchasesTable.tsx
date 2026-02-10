@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, memo, useMemo, useCallback } from "react";
-import { usePurchaseStore, Purchase } from "@/stores/PurchaseStore";
+import React, { memo, useMemo } from "react";
+import { usePurchaseStore } from "@/stores/PurchaseStore";
 import {
   Table,
   TableBody,
@@ -22,17 +22,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Loader2,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  PackageSearch,
-  Box,
-} from "lucide-react";
+import { Loader2, MoreHorizontal, Edit, Trash2, Box } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { EditPurchaseModal } from "./EditPurchaseModal";
 
 const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
   const productData = useMemo(() => {
@@ -46,11 +38,9 @@ const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
 
   const getStatusBadge = (status: string) => {
     const s = status?.toLowerCase() || "";
-    if (s.includes("complete") || s.includes("valid"))
+    if (s === "complete" || s === "validée")
       return <Badge className="bg-emerald-500">Validée</Badge>;
-    if (s.includes("cours"))
-      return <Badge className="bg-amber-500">En cours</Badge>;
-    return <Badge variant="destructive">Annulée</Badge>;
+    return <Badge className="bg-amber-500">En cours</Badge>;
   };
 
   return (
@@ -65,7 +55,7 @@ const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
           : "-"}
       </TableCell>
       <TableCell className="font-semibold">
-        {purchase.distributeur_nom}
+        {purchase.distributor_name || purchase.distributeur_nom}
       </TableCell>
 
       <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
@@ -75,40 +65,31 @@ const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
               <Box className="w-3.5 h-3.5" /> {productData.list.length} Réf.
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[450px] p-0 shadow-2xl" align="center">
-            <div className="bg-zinc-900 text-white px-4 py-3 flex justify-between items-center rounded-t-md">
-              <span className="text-xs font-bold uppercase tracking-widest">
-                Détail de l&apos;achat
-              </span>
-              <span className="text-[10px] bg-zinc-700 px-2 py-1 rounded">
-                Total: {productData.totalQty} Unités
+          <PopoverContent className="w-[400px] p-0 shadow-2xl" align="center">
+            <div className="bg-zinc-900 text-white px-4 py-2 flex justify-between items-center rounded-t-md text-xs font-bold uppercase tracking-widest">
+              Détail de l&apos;achat
+              <span className="bg-zinc-700 px-2 py-0.5 rounded">
+                {productData.totalQty} Unités
               </span>
             </div>
-            <div className="max-h-[350px] overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-zinc-50 text-[10px] uppercase text-zinc-500 border-b">
+            <div className="max-h-[300px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-zinc-50 border-b">
                   <tr>
-                    <th className="text-left p-3">Produit</th>
-                    <th className="text-center p-3">Qté</th>
-                    <th className="text-right p-3">P.U</th>
-                    <th className="text-right p-3">Total</th>
+                    <th className="text-left p-2">Produit</th>
+                    <th className="text-center p-2">Qté</th>
+                    <th className="text-right p-2">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {productData.list.map((p: any, i: number) => (
-                    <tr
-                      key={i}
-                      className="border-b last:border-0 hover:bg-zinc-50/50"
-                    >
-                      <td className="p-3 font-medium">{p.designation}</td>
-                      <td className="p-3 text-center bg-zinc-50/50 font-bold">
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="p-2">{p.name}</td>
+                      <td className="p-2 text-center font-bold">
                         {p.quantity}
                       </td>
-                      <td className="p-3 text-right text-zinc-500">
-                        {p.unit_price}
-                      </td>
-                      <td className="p-3 text-right font-semibold">
-                        {(p.quantity * p.unit_price).toLocaleString()}
+                      <td className="p-2 text-right">
+                        {(p.quantity * (p.unit_price || 0)).toLocaleString()} DA
                       </td>
                     </tr>
                   ))}
@@ -120,12 +101,16 @@ const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
       </TableCell>
 
       <TableCell className="text-right font-bold text-amir-blue">
-        {new Intl.NumberFormat("fr-DZ").format(purchase.montant_total)}{" "}
-        <span className="text-[10px] text-zinc-400">DA</span>
+        {new Intl.NumberFormat("fr-DZ").format(
+          purchase.montant_total || purchase.total_amount,
+        )}
+        <span className="text-[10px] text-zinc-400 ml-1">DA</span>
       </TableCell>
+
       <TableCell className="text-center">
         {getStatusBadge(purchase.status)}
       </TableCell>
+
       <TableCell
         className="text-right pr-6"
         onClick={(e) => e.stopPropagation()}
@@ -137,12 +122,12 @@ const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(purchase)}>
+            <DropdownMenuItem onSelect={() => onEdit(purchase)}>
               <Edit className="w-4 h-4 mr-2" /> Modifier
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-red-600"
-              onClick={() => onDelete(purchase.id)}
+              onSelect={() => onDelete(purchase.id)}
             >
               <Trash2 className="w-4 h-4 mr-2" /> Supprimer
             </DropdownMenuItem>
@@ -154,10 +139,8 @@ const PurchaseRow = memo(({ purchase, onEdit, onDelete }: any) => {
 });
 PurchaseRow.displayName = "PurchaseRow";
 
-export function PurchasesTable() {
+export function PurchasesTable({ onEdit }: { onEdit: (p: any) => void }) {
   const { purchases, isLoading, deletePurchase } = usePurchaseStore();
-  const [selected, setSelected] = useState<Purchase | null>(null);
-
   if (isLoading)
     return (
       <div className="h-64 flex items-center justify-center">
@@ -166,45 +149,28 @@ export function PurchasesTable() {
     );
 
   return (
-    <>
-      <Table>
-        <TableHeader className="bg-zinc-50">
-          <TableRow>
-            <TableHead className="w-[80px] pl-6">ID</TableHead>
-            <TableHead className="w-[150px]">Date</TableHead>
-            <TableHead>Distributeur</TableHead>
-            <TableHead className="text-center">Détails Produits</TableHead>
-            <TableHead className="text-right">Montant Total</TableHead>
-            <TableHead className="text-center">Statut</TableHead>
-            <TableHead className="w-[50px] pr-6"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {purchases.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="h-40 text-center text-zinc-400">
-                Aucun achat trouvé
-              </TableCell>
-            </TableRow>
-          ) : (
-            purchases.map((p) => (
-              <PurchaseRow
-                key={p.id}
-                purchase={p}
-                onEdit={setSelected}
-                onDelete={deletePurchase}
-              />
-            ))
-          )}
-        </TableBody>
-      </Table>
-      {selected && (
-        <EditPurchaseModal
-          purchase={selected}
-          open={!!selected}
-          onClose={() => setSelected(null)}
-        />
-      )}
-    </>
+    <Table>
+      <TableHeader className="bg-zinc-50">
+        <TableRow>
+          <TableHead className="w-[80px] pl-6">ID</TableHead>
+          <TableHead className="w-[150px]">Date</TableHead>
+          <TableHead>Distributeur</TableHead>
+          <TableHead className="text-center">Détails</TableHead>
+          <TableHead className="text-right">Montant Total</TableHead>
+          <TableHead className="text-center">Statut</TableHead>
+          <TableHead className="w-[50px] pr-6"></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {purchases.map((p) => (
+          <PurchaseRow
+            key={p.id}
+            purchase={p}
+            onEdit={onEdit}
+            onDelete={deletePurchase}
+          />
+        ))}
+      </TableBody>
+    </Table>
   );
 }

@@ -254,7 +254,7 @@ export function EditSaleModal({ sale, open, onClose }: EditSaleModalProps) {
                   <SelectContent className="w-full">
                     {distributors.map((d: any) => (
                       <SelectItem key={d.id} value={d.id.toString()}>
-                        {d.nom}
+                        {d.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

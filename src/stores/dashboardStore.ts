@@ -21,7 +21,10 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   fetchStats: async () => {
     set({ isLoading: true, error: null });
     try {
-      const res = await api.get("/dashboard/stats");
+      // Changed from /dashboard/stats to /supervisor/dashboard/stats
+      const res = await api.get("/supervisor/dashboard/stats");
+      // Note: We restored the "data" wrapper in the backend controller
+      // so res.data.data is correct.
       set({ stats: res.data.data, isLoading: false });
     } catch (err) {
       set({

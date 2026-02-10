@@ -1,10 +1,9 @@
 "use client";
-
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores/authStore";
+import { useAuthStore } from "@/stores/AuthStore";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -16,11 +15,47 @@ import {
   ChevronRight,
   TrendingUp,
   CreditCard,
-  Store,
   LogOut,
   Users,
+  ShieldCheck,
+  Map,
+  Store,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const MENU_CONFIG = {
+  admin: [
+    { name: "Utilisateurs", href: "/admin/users", icon: Users },
+    { name: "Produits", href: "/admin/products", icon: Package },
+    { name: "Distributeurs", href: "/admin/distributors", icon: Store },
+  ],
+  superviseur: [
+    { name: "Vue d'ensemble", href: "/superviseur", icon: LayoutDashboard },
+    { name: "Ventes Vendeurs", href: "/superviseur/sales", icon: ShoppingCart },
+    { name: "Achats Dist.", href: "/superviseur/purchases", icon: CreditCard },
+    {
+      name: "Visites Terrain",
+      href: "/superviseur/visits",
+      icon: ClipboardCheck,
+    },
+    { name: "Objectifs", href: "/superviseur/objectives", icon: Target },
+    { name: "Inventaire", href: "/superviseur/inventory", icon: Package },
+    { name: "Mes Vendeurs", href: "/superviseur/vendors", icon: Users },
+  ],
+  dg: [
+    { name: "National Overview", href: "/dg", icon: ShieldCheck },
+    { name: "BI & Analytics", href: "/dg/reports", icon: TrendingUp },
+  ],
+  regional: [
+    { name: "Région Dashboard", href: "/regional", icon: LayoutDashboard },
+    { name: "Performance Zones", href: "/regional/zones", icon: Map },
+  ],
+  chef_zone: [
+    { name: "Zone Dashboard", href: "/chef-zone", icon: LayoutDashboard },
+    { name: "Suivi Superviseurs", href: "/chef-zone/supervisors", icon: Users },
+  ],
+};
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -28,63 +63,10 @@ export function Sidebar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
 
-  const menuItems = [
-    {
-      name: "Vue d'ensemble",
-      href: "/superviseur",
-      icon: LayoutDashboard,
-      roles: ["superviseur", "admin", "dg"],
-    },
-    {
-      name: "Ventes Vendeurs",
-      href: "/superviseur/sales",
-      icon: ShoppingCart,
-      roles: ["superviseur", "admin"],
-    },
-    {
-      name: "Achats Distributeurs",
-      href: "/superviseur/purchases",
-      icon: CreditCard,
-      roles: ["superviseur"],
-    },
-    {
-      name: "Visites Terrain",
-      href: "/superviseur/visits",
-      icon: ClipboardCheck,
-      roles: ["superviseur"],
-    },
-    {
-      name: "Objectifs",
-      href: "/superviseur/objectives",
-      icon: Target,
-      roles: ["superviseur", "chef_zone"],
-    },
-    {
-      name: "Inventaire Produits",
-      href: "/superviseur/inventory",
-      icon: Package,
-      roles: ["superviseur", "vendeur"],
-    },
-    {
-      name: "Mes Vendeurs",
-      href: "/superviseur/vendors",
-      icon: Users,
-      roles: ["superviseur"],
-    },
-    {
-      name: "Rapports",
-      href: "/superviseur/reports",
-      icon: TrendingUp,
-      roles: ["superviseur", "dg"],
-    },
-  ];
-
-  const userRole = user?.role?.toLowerCase(); // Force lowercase for comparison
-
-  const filteredItems = menuItems.filter(
-    (item) =>
-      userRole && item.roles.map((r) => r.toLowerCase()).includes(userRole),
-  );
+  const userRole = user?.role?.toLowerCase() || "superviseur";
+  const currentMenu =
+    MENU_CONFIG[userRole as keyof typeof MENU_CONFIG] ||
+    MENU_CONFIG.superviseur;
 
   return (
     <aside
@@ -93,7 +75,6 @@ export function Sidebar() {
         isCollapsed ? "w-20" : "w-64",
       )}
     >
-      {/* Brand Header */}
       <div className="h-24 flex items-center justify-between px-6 border-b border-zinc-900">
         {!isCollapsed && (
           <div className="w-full flex justify-center pt-2">
@@ -103,7 +84,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          className="text-zinc-400 hover:text-white hover:bg-zinc-900"
+          className="text-zinc-400 hover:text-white"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -111,7 +92,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {filteredItems.map((item) => {
+        {currentMenu.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -120,7 +101,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all group",
                 isActive
-                  ? "bg-amir-beige text-zinc-50 shadow-lg shadow-amir-beige/10 font-bold" // Beige for active
+                  ? "bg-amir-beige text-zinc-50 font-bold"
                   : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100",
               )}
             >
@@ -141,11 +122,8 @@ export function Sidebar() {
       <div className="p-4 border-t border-zinc-900">
         <Button
           variant="ghost"
-          className="w-full justify-start text-zinc-400 hover:text-white hover:bg-amir-red/80 h-10 px-3 transition-colors" // Red for logout
-          onClick={() => {
-            logout();
-            router.push("/login");
-          }}
+          className="w-full justify-start text-zinc-400 hover:bg-amir-red/80 hover:text-white h-10 px-3"
+          onClick={() => logout()}
         >
           <LogOut size={20} className={cn(!isCollapsed && "mx-3")} />
           {!isCollapsed && <span className="text-sm">Quitter</span>}

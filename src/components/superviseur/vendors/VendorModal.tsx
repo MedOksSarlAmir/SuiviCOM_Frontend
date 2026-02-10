@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useVendorStore } from "@/stores/VendorStore";
 import { useSalesStore } from "@/stores/SaleStore";
 import {
@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,52 +19,74 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserPlus, Loader2 } from "lucide-react";
+import { UserPlus, UserCog, Loader2, CloudCog } from "lucide-react";
 
-export function NewVendorModal() {
-  const { createVendor } = useVendorStore();
-  const { distributors } = useSalesStore();
-  const [open, setOpen] = useState(false);
+interface VendorModalProps {
+  vendor: any | null; // If null, we are in "Create" mode
+  open: boolean;
+  onClose: () => void;
+}
+
+const INITIAL_FORM = {
+  code: "",
+  nom: "",
+  prenom: "",
+  vendor_type: "detail",
+  distributor_id: "",
+  active: true,
+};
+
+export function VendorModal({ vendor, open, onClose }: VendorModalProps) {
+  const { createVendor, updateVendor } = useVendorStore();
+  const { distributors, fetchDependencies } = useSalesStore();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    code: "",
-    nom: "",
-    prenom: "",
-    vendor_type: "detail",
-    distributor_id: "",
-  });
+  const [form, setForm] = useState(INITIAL_FORM);
+  const isEdit = !!vendor;
+  useEffect(() => {
+    if (open) {
+      fetchDependencies();
+      if (vendor) {
+        setForm({
+          ...vendor,
+          distributor_id: vendor.distributor_id?.toString() || "",
+        });
+      } else {
+        setForm(INITIAL_FORM);
+      }
+    }
+  }, [open, vendor, fetchDependencies]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const success = await createVendor({
+
+    const payload = {
       ...form,
       distributor_id: parseInt(form.distributor_id),
-    });
+    };
+
+    const success = isEdit
+      ? await updateVendor(vendor.id, payload)
+      : await createVendor(payload);
+
     setLoading(false);
-    if (success) {
-      setOpen(false);
-      setForm({
-        code: "",
-        nom: "",
-        prenom: "",
-        vendor_type: "detail",
-        distributor_id: "",
-      });
-    }
+    if (success) onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-amir-blue h-9">
-          <UserPlus className="w-4 h-4 mr-2" /> Nouveau Vendeur
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajouter un Vendeur</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {isEdit ? (
+              <UserCog className="text-amir-blue" />
+            ) : (
+              <UserPlus className="text-amir-blue" />
+            )}
+            {isEdit ? `Modifier ${vendor?.nom}` : "Nouveau Vendeur"}
+          </DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -93,6 +114,7 @@ export function NewVendorModal() {
               </Select>
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nom</Label>
@@ -111,8 +133,9 @@ export function NewVendorModal() {
               />
             </div>
           </div>
+
           <div className="space-y-2">
-            <Label>Distributeur Rattaché</Label>
+            <Label>Distributeur</Label>
             <Select
               value={form.distributor_id}
               onValueChange={(v) => setForm({ ...form, distributor_id: v })}
@@ -123,20 +146,46 @@ export function NewVendorModal() {
               <SelectContent>
                 {distributors.map((d) => (
                   <SelectItem key={d.id} value={d.id.toString()}>
-                    {d.nom}
+                    {d.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          {isEdit && (
+            <div className="space-y-2">
+              <Label>Statut</Label>
+              <Select
+                value={form.active ? "true" : "false"}
+                onValueChange={(v) =>
+                  setForm({ ...form, active: v === "true" })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Actif</SelectItem>
+                  <SelectItem value="false">Inactif</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <DialogFooter className="pt-4">
+            <Button variant="ghost" type="button" onClick={onClose}>
+              Annuler
+            </Button>
             <Button
               type="submit"
-              className="w-full bg-amir-blue"
+              className="bg-amir-blue"
               disabled={loading || !form.distributor_id}
             >
               {loading ? (
                 <Loader2 className="animate-spin h-4 w-4" />
+              ) : isEdit ? (
+                "Mettre à jour"
               ) : (
                 "Enregistrer"
               )}

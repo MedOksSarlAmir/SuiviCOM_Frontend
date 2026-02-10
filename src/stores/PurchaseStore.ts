@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 export interface PurchaseItem {
   product_id: number;
-  designation: string;
+  name: string;
   quantity: number;
   unit_price: number;
 }
@@ -85,8 +85,8 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     if (get().isDependenciesLoaded) return;
     try {
       const [pRes, dRes] = await Promise.all([
-        api.get("/supervisor/products"),
-        api.get("/supervisor/distributors"),
+        api.get("/shared/products"), // Changed to shared
+        api.get("/shared/distributors"), // Changed to shared
       ]);
       const products = pRes.data.map((p: any) => ({
         ...p,
@@ -102,7 +102,8 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     set({ isLoading: true });
     const { page, limit, filters } = get();
     try {
-      const res = await api.get("/purchases", {
+      const res = await api.get("/supervisor/purchases", {
+        // Prefix added
         params: {
           page,
           pageSize: limit,
@@ -110,15 +111,19 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
           status: filters.status,
           startDate: filters.startDate,
           endDate: filters.endDate,
-          distributeur_id:
+          // Changed parameter name
+          distributor_id:
             filters.distributeur_id === "all"
               ? undefined
               : filters.distributeur_id,
         },
       });
+
+      // Map Backend "total_amount" to Frontend "montant_total"
       const purchases = res.data.data.map((p: any) => ({
         ...p,
-        products: p.products.map((item: any) => ({
+        montant_total: p.total_amount,
+        products: (p.products || []).map((item: any) => ({
           ...item,
           unit_price: item.price_factory || 0,
         })),
@@ -132,10 +137,12 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
   createPurchase: async (data) => {
     try {
       const payload = {
-        ...data,
+        date: data.date,
+        distributor_id: data.distributor_id, // Map keys for BE
+        status: data.status,
         products: data.products.filter((p: any) => p.quantity > 0),
       };
-      await api.post("/purchases", payload);
+      await api.post("/supervisor/purchases", payload); // Prefix added
       toast.success("Bon d'achat créé");
       get().fetchPurchases();
       return true;
@@ -148,13 +155,15 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
   updatePurchase: async (id, data) => {
     try {
       const payload = {
-        ...data,
+        date: data.date,
+        distributor_id: data.distributeurId, // Map keys for BE
+        status: data.status,
         products: data.products.map((p: any) => ({
-          ...p,
-          price_factory: p.unit_price,
+          product_id: p.product_id,
+          quantity: p.quantity,
         })),
       };
-      await api.put(`/purchases/${id}`, payload);
+      await api.put(`/supervisor/purchases/${id}`, payload); // Prefix added
       toast.success("Bon d'achat mis à jour");
       get().fetchPurchases();
       return true;
@@ -166,9 +175,11 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
 
   deletePurchase: async (id) => {
     try {
-      await api.delete(`/purchases/${id}`);
-      toast.success("Bon d'achat supprimé");
-      get().fetchPurchases();
+      if (confirm("Êtes-vous sûr de vouloir supprimer ce bon d'achat ?")) {
+        await api.delete(`/supervisor/purchases/${id}`); // Prefix added
+        toast.success("Bon d'achat supprimé");
+        get().fetchPurchases();
+      }
     } catch {
       toast.error("Erreur de suppression");
     }
@@ -177,7 +188,8 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
   fetchPurchaseMatrix: async (params) => {
     set({ isMatrixLoading: true });
     try {
-      const res = await api.get("/purchases/matrix", { params });
+      // Endpoint updated to supervisor prefix
+      const res = await api.get("/supervisor/purchases/matrix", { params });
       set({
         matrix: res.data.data,
         matrixTotal: res.data.total,

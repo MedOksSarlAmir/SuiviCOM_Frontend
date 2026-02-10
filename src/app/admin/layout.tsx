@@ -1,38 +1,32 @@
 "use client";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuthStore } from "@/stores/AuthStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-export default function SupervisorLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 🔹 Get the hydration flag from the store
-  const { isAuthenticated, user, _hasHydrated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
 
+  const isChecking = !isAuthenticated || !user;
+
   useEffect(() => {
-    // 🔹 ONLY redirect if hydration is finished AND the user is actually missing
-    if (_hasHydrated && (!isAuthenticated || !user)) {
+    if (isChecking) {
       router.replace("/login");
     }
-  }, [_hasHydrated, isAuthenticated, user, router]);
+  }, [isChecking, router]);
 
-  // 🔹 While hydration is in progress, show a loader and STAY on the current URL
-  if (!_hasHydrated) {
+  if (isChecking) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-zinc-50">
         <Loader2 className="h-8 w-8 animate-spin text-amir-blue" />
       </div>
     );
-  }
-
-  // If hydration finished but user isn't logged in, don't render the UI
-  if (!isAuthenticated || !user) {
-    return null;
   }
 
   return (

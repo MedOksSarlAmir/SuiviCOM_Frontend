@@ -7,10 +7,11 @@ interface VisitMatrixItem {
   vendor_name: string;
   vendor_code: string;
   vendor_type: string;
-  prog: number;
-  done: number;
+  planned: number;
+  actual: number;
   invoices: number;
   visit_id: number | null;
+  active: boolean;
 }
 
 interface VisitState {
@@ -69,7 +70,8 @@ export const useVisitStore = create<VisitState>((set, get) => ({
     set({ isLoading: true });
     const { page, limit, filters } = get();
     try {
-      const res = await api.get("/visits", {
+      const res = await api.get("/supervisor/visits", {
+        // Prefix added
         params: {
           page,
           pageSize: limit,
@@ -82,7 +84,16 @@ export const useVisitStore = create<VisitState>((set, get) => ({
               : filters.distributeur_id,
         },
       });
-      set({ visits: res.data.data, total: res.data.total, isLoading: false });
+
+      // Map Backend metrics to Frontend names for the History list
+      const mappedVisits = res.data.data.map((v: any) => ({
+        ...v,
+        visites_programmees: v.planned,
+        visites_effectuees: v.actual,
+        nb_factures: v.invoices,
+      }));
+
+      set({ visits: mappedVisits, total: res.data.total, isLoading: false });
     } catch {
       set({ isLoading: false, visits: [] });
     }
@@ -91,8 +102,13 @@ export const useVisitStore = create<VisitState>((set, get) => ({
   fetchVisitMatrix: async (params) => {
     set({ isLoading: true });
     try {
-      const res = await api.get("/visits/matrix", {
-        params: { ...params, pageSize: 25 },
+      // Path variable mapping dist_id is now a query param distributor_id in new BE
+      const res = await api.get("/supervisor/visits/matrix", {
+        params: {
+          ...params,
+          distributor_id: params.distributeur_id,
+          pageSize: 25,
+        },
       });
       set({
         matrixData: res.data.data,
@@ -112,7 +128,9 @@ export const useVisitStore = create<VisitState>((set, get) => ({
       isErrorCell: { ...state.isErrorCell, [cellKey]: false },
     }));
     try {
-      await api.post("/visits/upsert", payload);
+      // Field logic: backend supports both "prog" and "planned".
+      // We send payload as is.
+      await api.post("/supervisor/visits/upsert", payload); // Prefix added
       const { matrixData } = get();
       const newData = matrixData.map((v) =>
         v.vendor_id === vendor_id ? { ...v, [field]: value } : v,

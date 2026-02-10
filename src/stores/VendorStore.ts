@@ -32,7 +32,8 @@ export const useVendorStore = create<VendorState>((set, get) => ({
     set({ isLoading: true });
     const { filters } = get();
     try {
-      const res = await api.get("/vendors", {
+      const res = await api.get("/supervisor/vendors", {
+        // Prefix added
         params: {
           distributor_id:
             filters.distributor_id === "all"
@@ -43,7 +44,16 @@ export const useVendorStore = create<VendorState>((set, get) => ({
             filters.vendor_type === "all" ? undefined : filters.vendor_type,
         },
       });
-      set({ vendors: res.data, isLoading: false });
+
+      // Map Backend names to Frontend "nom/prenom"
+      const mappedVendors = res.data.data.map((v: any) => ({
+        ...v,
+        nom: v.last_name,
+        prenom: v.first_name,
+        vendor_type: v.type, // BE uses 'type', FE uses 'vendor_type'
+      }));
+
+      set({ vendors: mappedVendors, isLoading: false });
     } catch {
       set({ isLoading: false });
     }
@@ -51,7 +61,15 @@ export const useVendorStore = create<VendorState>((set, get) => ({
 
   createVendor: async (data) => {
     try {
-      await api.post("/vendors", data);
+      // Map UI keys to new BE English keys
+      const payload = {
+        code: data.code,
+        last_name: data.nom,
+        first_name: data.prenom,
+        type: data.vendor_type,
+        distributor_id: data.distributor_id,
+      };
+      await api.post("/supervisor/vendors", payload); // Prefix added
       toast.success("Vendeur ajouté avec succès");
       get().fetchVendors();
       return true;
@@ -63,7 +81,14 @@ export const useVendorStore = create<VendorState>((set, get) => ({
 
   updateVendor: async (id, data) => {
     try {
-      await api.put(`/vendors/${id}`, data);
+      // Map UI keys to new BE English keys
+      const payload = {
+        last_name: data.nom,
+        first_name: data.prenom,
+        type: data.vendor_type,
+        active: data.active,
+      };
+      await api.put(`/supervisor/vendors/${id}`, payload); // Prefix added
       toast.success("Vendeur mis à jour");
       get().fetchVendors();
       return true;
@@ -75,7 +100,7 @@ export const useVendorStore = create<VendorState>((set, get) => ({
 
   deleteVendor: async (id) => {
     try {
-      await api.delete(`/vendors/${id}`);
+      await api.delete(`/supervisor/vendors/${id}`); // Prefix added
       toast.success("Vendeur supprimé");
       get().fetchVendors();
       return { success: true };
