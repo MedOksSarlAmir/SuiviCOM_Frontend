@@ -146,8 +146,11 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       toast.success("Bon d'achat créé");
       get().fetchPurchases();
       return true;
-    } catch {
-      toast.error("Erreur de création");
+    } catch (error: any) {
+      toast.error(
+        `Erreur de création : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
       return false;
     }
   },
@@ -167,8 +170,11 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       toast.success("Bon d'achat mis à jour");
       get().fetchPurchases();
       return true;
-    } catch {
-      toast.error("Erreur de modification");
+    } catch (error: any) {
+      toast.error(
+        `Erreur de modification : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
       return false;
     }
   },
@@ -180,8 +186,11 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         toast.success("Bon d'achat supprimé");
         get().fetchPurchases();
       }
-    } catch {
-      toast.error("Erreur de suppression");
+    } catch (error: any) {
+      toast.error(
+        `Erreur de suppression : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
     }
   },
 

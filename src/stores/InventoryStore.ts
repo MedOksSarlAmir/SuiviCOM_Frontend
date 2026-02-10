@@ -17,7 +17,11 @@ interface InventoryState {
   setLimit: (limit: number) => void;
   setFilters: (filters: Partial<InventoryState["filters"]>) => void;
   fetchInventory: () => Promise<void>;
-  fetchHistory: (distId: number, prodId: number, reset?: boolean) => Promise<void>;
+  fetchHistory: (
+    distId: number,
+    prodId: number,
+    reset?: boolean,
+  ) => Promise<void>;
   createAdjustment: (data: any) => Promise<boolean>;
   deleteAdjustment: (id: number) => Promise<boolean>;
   refreshGlobalInventory: () => Promise<boolean>;
@@ -37,12 +41,17 @@ const INITIAL_STATE = {
   isLoadingHistory: false,
 };
 
-
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   ...INITIAL_STATE,
 
-  setPage: (page) => { set({ page }); get().fetchInventory(); },
-  setLimit: (limit) => { set({ limit, page: 1 }); get().fetchInventory(); },
+  setPage: (page) => {
+    set({ page });
+    get().fetchInventory();
+  },
+  setLimit: (limit) => {
+    set({ limit, page: 1 });
+    get().fetchInventory();
+  },
   setFilters: (newFilters) => {
     set((state) => ({ filters: { ...state.filters, ...newFilters }, page: 1 }));
     get().fetchInventory();
@@ -55,18 +64,18 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     try {
       // Changed from /inventory/${id} to /supervisor/inventory/stock?distributor_id=${id}
       const res = await api.get(`/supervisor/inventory/stock`, {
-        params: { 
+        params: {
           distributor_id: filters.distributor_id,
-          search: filters.search || undefined, 
-          page, 
-          pageSize: limit 
+          search: filters.search || undefined,
+          page,
+          pageSize: limit,
         },
       });
       // Map 'quantity' back to 'stock'
       const items = res.data.data.map((item: any) => ({
         ...item,
         name: item.product_name,
-        stock: item.quantity
+        stock: item.quantity,
       }));
       set({ items, total: res.data.total, isLoading: false });
     } catch {
@@ -79,13 +88,16 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     set({ isLoadingHistory: true });
     try {
       // Changed route to /supervisor prefix
-      const res = await api.get(`/supervisor/inventory/history/${distId}/${prodId}`, {
-        params: { page: pageToFetch, pageSize: 10 },
-      });
-      
+      const res = await api.get(
+        `/supervisor/inventory/history/${distId}/${prodId}`,
+        {
+          params: { page: pageToFetch, pageSize: 10 },
+        },
+      );
+
       const historyData = res.data.data.map((h: any) => ({
         ...h,
-        qte: h.quantity // Map quantity back to qte
+        qte: h.quantity, // Map quantity back to qte
       }));
 
       set((state) => ({
@@ -106,8 +118,11 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       toast.success("Ajustement de stock enregistré");
       get().fetchInventory();
       return true;
-    } catch {
-      toast.error("Erreur lors de l'ajustement");
+    } catch (error: any) {
+      toast.error(
+        `Erreur lors de l'ajustement : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
       return false;
     }
   },
@@ -119,8 +134,11 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       toast.success("Ajustement supprimé");
       get().fetchInventory();
       return true;
-    } catch {
-      toast.error("Erreur de suppression");
+    } catch (error: any) {
+      toast.error(
+        `Erreur de suppression : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
       return false;
     }
   },
@@ -131,8 +149,11 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       toast.success("Inventaire global synchronisé");
       get().fetchInventory();
       return true;
-    } catch {
-      toast.error("Erreur de synchronisation");
+    } catch (error: any) {
+      toast.error(
+        `Erreur de synchronisation : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
       return false;
     }
   },

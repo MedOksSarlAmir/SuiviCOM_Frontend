@@ -136,11 +136,14 @@ export const useVisitStore = create<VisitState>((set, get) => ({
       );
       set({ matrixData: newData });
       toast.success("Donnée visite mise à jour", { duration: 1500 });
-    } catch {
+    } catch (err: any) {
       set((state) => ({
         isErrorCell: { ...state.isErrorCell, [cellKey]: true },
       }));
-      toast.error("Erreur de sauvegarde visite");
+      toast.error(
+        `Erreur de sauvegarde visite : ${err.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
     } finally {
       set((state) => ({
         isSavingCell: { ...state.isSavingCell, [cellKey]: false },

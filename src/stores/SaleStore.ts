@@ -205,7 +205,10 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       toast.success("Quantité mise à jour", { duration: 2000 });
     } catch (err: any) {
       set((s) => ({ isErrorCell: { ...s.isErrorCell, [cellKey]: true } }));
-      toast.error("Erreur d'enregistrement");
+      toast.error(
+        `Erreur d'enregistrement : ${err.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
     } finally {
       set((s) => ({ isSavingCell: { ...s.isSavingCell, [cellKey]: false } }));
     }
@@ -221,8 +224,11 @@ export const useSalesStore = create<SalesState>((set, get) => ({
         },
       }));
       toast.success(`Statut mis à jour`);
-    } catch {
-      toast.error("Erreur de changement de statut");
+    } catch (error: any) {
+      toast.error(
+        `Erreur de changement de statut : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
     }
   },
 

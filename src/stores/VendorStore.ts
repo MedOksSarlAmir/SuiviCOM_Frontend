@@ -73,8 +73,11 @@ export const useVendorStore = create<VendorState>((set, get) => ({
       toast.success("Vendeur ajouté avec succès");
       get().fetchVendors();
       return true;
-    } catch {
-      toast.error("Erreur lors de l'ajout du vendeur");
+    } catch (error: any) {
+      toast.error(
+        `Erreur lors de l'ajout du vendeur : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
       return false;
     }
   },
@@ -92,8 +95,11 @@ export const useVendorStore = create<VendorState>((set, get) => ({
       toast.success("Vendeur mis à jour");
       get().fetchVendors();
       return true;
-    } catch {
-      toast.error("Erreur lors de la modification");
+    } catch (error: any) {
+      toast.error(
+        `Erreur lors de la modification : ${error.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
       return false;
     }
   },
@@ -105,10 +111,14 @@ export const useVendorStore = create<VendorState>((set, get) => ({
       get().fetchVendors();
       return { success: true };
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message || "Erreur lors de la suppression";
-      toast.error(msg);
-      return { success: false, message: msg };
+      toast.error(
+        `Erreur lors de la suppression : ${err.response?.data?.message || "Erreur inconnue"}`,
+        { duration: 10000 },
+      );
+      return {
+        success: false,
+        message: err.response?.data?.message || "Erreur inconnue",
+      };
     }
   },
 
