@@ -12,8 +12,8 @@ export interface User {
   username: string;
   email: string;
   role: UserRole;
-  nom?: string;
-  prenom?: string;
+  last_name?: string;
+  first_name?: string;
   wilaya?: string;
   wilaya_id?: number;
   zone?: string;

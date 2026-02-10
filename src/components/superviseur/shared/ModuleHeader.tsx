@@ -16,6 +16,7 @@ export function ModuleHeader({
   iconColor = "text-amir-blue",
 }: ModuleHeaderProps) {
   const { user } = useAuthStore();
+  console.log("User in ModuleHeader:", user); // Debug log to check user data
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center px-8 sticky top-0 z-10">
       <div className="flex flex-row items-center justify-between w-full">
@@ -33,7 +34,7 @@ export function ModuleHeader({
         <div className="flex items-center gap-6">
           <div className="text-right">
             <p className="text-sm font-semibold text-gray-900 leading-none mb-1">
-              {user?.prenom} {user?.nom}
+              {user?.last_name} {user?.first_name}
             </p>
             <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">
               Session Active
