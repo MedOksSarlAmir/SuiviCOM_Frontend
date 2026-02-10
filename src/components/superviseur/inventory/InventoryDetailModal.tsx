@@ -13,7 +13,6 @@ import {
   Trash2,
   ChevronDown,
   History,
-  Info,
   MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,9 +36,10 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
 
   useEffect(() => {
     if (product && distributorId) {
+      // Fetch fresh data when modal opens
       fetchHistory(parseInt(distributorId), product.product_id, true);
     }
-  }, [product, distributorId]);
+  }, [product, distributorId, fetchHistory]);
 
   const handleLoadMore = () => {
     fetchHistory(parseInt(distributorId), product.product_id);
@@ -55,18 +55,19 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
   return (
     <Dialog open={!!product} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
-        {/* Unified Pro Header */}
-        <DialogHeader className="p-6 bg-zinc-100 text-white">
+        {/* Header Section */}
+        <DialogHeader className="p-6 bg-zinc-100 border-b border-zinc-200">
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 text-amir-beige mb-1">
+            <div className="flex items-center gap-2 text-amir-blue mb-1">
               <History className="w-4 h-4" />
               <span className="text-[10px] uppercase font-bold tracking-[0.2em]">
                 Journal des Mouvements
               </span>
             </div>
-            <DialogTitle className="text-xl font-bold flex justify-between items-center text-black">
-              <span>{product?.name}</span>
-              <Badge className="bg-amir-blue text-white border-none hover:bg-amir-blue">
+            <DialogTitle className="text-xl font-bold flex justify-between items-center text-zinc-900">
+              {/* Supports both designation and name mapping */}
+              <span>{product?.designation || product?.name}</span>
+              <Badge className="bg-amir-blue text-white border-none">
                 {historyTotal} opérations
               </Badge>
             </DialogTitle>
@@ -76,7 +77,17 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-0">
+        {/* Table Container with Blur Logic */}
+        <div className="flex-1 overflow-y-auto relative min-h-[300px]">
+          {/* 🔹 THE BLUR OVERLAY */}
+          {isLoadingHistory && history.length > 0 && (
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-30 flex items-center justify-center transition-all duration-300">
+              <div className="bg-white/90 p-4 rounded-full shadow-lg border border-zinc-100">
+                <Loader2 className="animate-spin text-amir-blue w-6 h-6" />
+              </div>
+            </div>
+          )}
+
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 bg-white z-20 shadow-sm">
               <tr className="text-zinc-400 text-[10px] uppercase font-bold tracking-wider border-b border-zinc-100">
@@ -89,7 +100,14 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
                 <th className="text-right py-4 px-6 font-bold">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-50">
+            <tbody
+              className={cn(
+                "divide-y divide-zinc-50 transition-opacity duration-300",
+                isLoadingHistory && history.length === 0
+                  ? "opacity-0"
+                  : "opacity-100",
+              )}
+            >
               {history.map((h, i) => (
                 <tr
                   key={`${h.id}-${i}`}
@@ -114,7 +132,6 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
                     </Badge>
                   </td>
 
-                  {/* Fixed Width Cell with Tooltip for Long Notes */}
                   <td className="py-4 px-4 max-w-[240px]">
                     <div className="flex flex-col gap-0.5">
                       <p className="font-semibold text-zinc-800 truncate">
@@ -165,7 +182,7 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     ) : (
-                      <div className="h-8 w-8" /> /* Space maintainer */
+                      <div className="h-8 w-8" />
                     )}
                   </td>
                 </tr>
@@ -173,7 +190,18 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
             </tbody>
           </table>
 
-          {history.length < historyTotal && (
+          {/* Initial Loading State (when no data yet) */}
+          {isLoadingHistory && history.length === 0 && (
+            <div className="py-20 flex flex-col items-center justify-center gap-4">
+              <Loader2 className="animate-spin text-amir-blue w-10 h-10" />
+              <p className="text-zinc-400 text-sm animate-pulse font-medium">
+                Chargement de l&apos;historique...
+              </p>
+            </div>
+          )}
+
+          {/* Load More Button */}
+          {history.length > 0 && history.length < historyTotal && (
             <div className="p-8 flex justify-center bg-zinc-50/30">
               <Button
                 variant="outline"
@@ -192,6 +220,7 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
             </div>
           )}
 
+          {/* Empty State */}
           {!isLoadingHistory && history.length === 0 && (
             <div className="py-20 text-center flex flex-col items-center gap-2">
               <History className="w-10 h-10 text-zinc-100" />

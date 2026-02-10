@@ -16,7 +16,6 @@ export function ModuleHeader({
   iconColor = "text-amir-blue",
 }: ModuleHeaderProps) {
   const { user } = useAuthStore();
-  console.log("User in ModuleHeader:", user); // Debug log to check user data
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center px-8 sticky top-0 z-10">
       <div className="flex flex-row items-center justify-between w-full">

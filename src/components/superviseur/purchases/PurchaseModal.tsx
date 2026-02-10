@@ -49,7 +49,7 @@ export function PurchaseModal({
 }) {
   const {
     distributors,
-    products, // Full master list of products
+    products,
     createPurchase,
     updatePurchase,
     fetchPurchaseMatrix,
@@ -70,7 +70,6 @@ export function PurchaseModal({
     status: "en_cours",
   });
 
-  // This stores ALL quantities for ALL products across ALL pages
   const [localQtys, setLocalQtys] = useState<Record<number, number>>({});
   const [gridFilters, setGridFilters] = useState({
     search: "",
@@ -78,12 +77,13 @@ export function PurchaseModal({
     page: 1,
   });
 
-  // 1. Initial Load & Edit Data Population
+  const isMissing = (value: string) => !value || value === "";
+
+  /* ---------------- INIT LOAD ---------------- */
   useEffect(() => {
     if (open) {
       fetchSalesDeps();
       fetchPurchaseDeps();
-      // Important: if editing, we need the matrix to know about the current purchase context
       fetchPurchaseMatrix({
         ...gridFilters,
         purchase_id: purchase?.id,
@@ -96,12 +96,11 @@ export function PurchaseModal({
           date: purchase.date?.split("T")[0] || "",
           status: purchase.status || "en_cours",
         });
-        // Transform purchase products array into our Record cart
+
         const qtys = (purchase.products || []).reduce((acc: any, p: any) => {
           acc[p.product_id] = p.quantity;
           return acc;
         }, {});
-        console.log(purchase)
         setLocalQtys(qtys);
       } else {
         setHeader({
@@ -112,9 +111,9 @@ export function PurchaseModal({
         setLocalQtys({});
       }
     }
-  }, [open, purchase, fetchSalesDeps, fetchPurchaseDeps]);
+  }, [open, purchase]);
 
-  // 2. Fetch Matrix when filters/page change
+  /* ---------------- MATRIX FETCH ---------------- */
   useEffect(() => {
     if (open) {
       fetchPurchaseMatrix({
@@ -125,7 +124,7 @@ export function PurchaseModal({
     }
   }, [gridFilters.page, gridFilters.search, gridFilters.category]);
 
-  // 3. Calculation Logic (Works across all pages)
+  /* ---------------- TOTALS ---------------- */
   const totals = useMemo(() => {
     let units = 0;
     let amount = 0;
@@ -134,22 +133,26 @@ export function PurchaseModal({
       if (qty > 0) {
         const prodId = parseInt(id);
         units += qty;
-        // Search in the MASTER product list (full store), not just the current matrix page
         const p = products.find((prod) => prod.id === prodId);
-        if (p) {
-          amount += qty * (p.price_factory || 0);
-        }
+        if (p) amount += qty * (p.price_factory || 0);
       }
     });
 
     return { units, amount };
   }, [localQtys, products]);
 
+  /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const productsPayload = Object.entries(localQtys)
       .filter(([_, qty]) => qty > 0)
       .map(([id, qty]) => ({ product_id: parseInt(id), quantity: qty }));
+
+    if (!header.distributor_id) {
+      alert("Veuillez choisir un distributeur.");
+      return;
+    }
 
     if (productsPayload.length === 0) {
       alert("Veuillez saisir au moins une quantité.");
@@ -171,16 +174,14 @@ export function PurchaseModal({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
-        <DialogHeader className="p-5 border-b bg-white">
+        <DialogHeader className="p-5 border-b bg-gray-50">
           <DialogTitle className="flex items-center gap-2 text-xl">
             {isEdit ? (
               <Edit className="w-5 h-5 text-amir-blue" />
             ) : (
               <ShoppingBag className="w-5 h-5 text-amir-blue" />
             )}
-            {isEdit
-              ? `Modifier l'Achat #${purchase.id}`
-              : "Nouvel Approvisionnement"}
+            {isEdit ? `Modifier l'Achat #${purchase.id}` : "Nouvel Achat"}
           </DialogTitle>
         </DialogHeader>
 
@@ -189,8 +190,9 @@ export function PurchaseModal({
           className="flex flex-col flex-1 overflow-hidden"
         >
           <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-zinc-50/50">
-            {/* Header Inputs */}
-            <div className="p-4 bg-white rounded-xl border border-zinc-200 grid grid-cols-1 sm:grid-cols-3 gap-6 shadow-sm">
+            {/* HEADER */}
+            <div className="p-4 bg-white rounded-xl border grid grid-cols-1 sm:grid-cols-3 gap-6 shadow-sm">
+              {/* Distributor */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-black uppercase text-zinc-400">
                   Distributeur
@@ -201,8 +203,15 @@ export function PurchaseModal({
                     setHeader({ ...header, distributor_id: v })
                   }
                 >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Choisir..." />
+                  <SelectTrigger
+                    className={cn(
+                      "h-10 transition-all",
+                      isMissing(header.distributor_id)
+                        ? "border-amber-400 bg-amber-50 text-amber-700 ring-2 ring-amber-200"
+                        : "border-zinc-200 bg-white",
+                    )}
+                  >
+                    <SelectValue placeholder="⚠ Choisir un distributeur" />
                   </SelectTrigger>
                   <SelectContent>
                     {distributors.map((d) => (
@@ -213,6 +222,8 @@ export function PurchaseModal({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Date */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-black uppercase text-zinc-400">
                   Date
@@ -220,12 +231,19 @@ export function PurchaseModal({
                 <Input
                   type="date"
                   value={header.date}
-                  className="h-10"
+                  className={cn(
+                    "h-10 transition-all",
+                    !header.date
+                      ? "border-amber-400 bg-amber-50 text-amber-700 ring-2 ring-amber-200"
+                      : "border-zinc-200 bg-white",
+                  )}
                   onChange={(e) =>
                     setHeader({ ...header, date: e.target.value })
                   }
                 />
               </div>
+
+              {/* Status */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-black uppercase text-zinc-400">
                   Statut
@@ -234,7 +252,14 @@ export function PurchaseModal({
                   value={header.status}
                   onValueChange={(v) => setHeader({ ...header, status: v })}
                 >
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger
+                    className={cn(
+                      "h-10 transition-all",
+                      header.status === "complete"
+                        ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                        : "border-blue-400 bg-blue-50 text-blue-700",
+                    )}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -245,8 +270,8 @@ export function PurchaseModal({
               </div>
             </div>
 
-            {/* Grid Search & Filter */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center bg-white p-3 rounded-xl border border-zinc-200 shadow-sm">
+            {/* FILTERS */}
+            <div className="flex flex-col sm:flex-row gap-3 items-center bg-white p-3 rounded-xl border shadow-sm">
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                 <Input
@@ -282,8 +307,8 @@ export function PurchaseModal({
               </Select>
             </div>
 
-            {/* Product Matrix Table */}
-            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden relative shadow-sm">
+            {/* PRODUCT MATRIX */}
+            <div className="bg-white border rounded-xl overflow-hidden relative shadow-sm">
               {isMatrixLoading && (
                 <div className="absolute inset-0 bg-white/60 z-20 flex flex-col items-center justify-center backdrop-blur-[1px]">
                   <Loader2 className="animate-spin text-amir-blue w-8 h-8 mb-2" />
@@ -358,6 +383,7 @@ export function PurchaseModal({
                   })}
                 </TableBody>
               </Table>
+
               <div className="p-3 border-t bg-zinc-50/50">
                 <PaginationControl
                   total={matrixTotal}
@@ -371,7 +397,7 @@ export function PurchaseModal({
             </div>
           </div>
 
-          {/* Footer Totals */}
+          {/* FOOTER TOTALS */}
           <DialogFooter className="bg-white p-5 border-t flex items-center justify-between">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-3">
@@ -402,6 +428,7 @@ export function PurchaseModal({
                 </div>
               </div>
             </div>
+
             <div className="flex gap-3">
               <Button
                 type="button"
@@ -413,7 +440,12 @@ export function PurchaseModal({
               </Button>
               <Button
                 type="submit"
-                className="bg-amir-blue hover:bg-amir-blue-hover min-w-[160px] font-bold h-11"
+                className={cn(
+                  "min-w-[160px] font-bold h-11 transition-all",
+                  header.distributor_id
+                    ? "bg-amir-blue hover:bg-amir-blue-hover"
+                    : "bg-amber-400 hover:bg-amber-500 text-white",
+                )}
                 disabled={loading || !header.distributor_id}
               >
                 {loading ? (

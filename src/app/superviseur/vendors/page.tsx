@@ -20,15 +20,10 @@ import { Button } from "@/components/ui/button";
 export default function VendorsPage() {
   const { vendors, fetchVendors, filters, setFilters } = useVendorStore();
   const { distributors, fetchDependencies } = useSalesStore();
-
-  // State for modals
   const [modalState, setModalState] = useState<{
     open: boolean;
     vendor: any | null;
-  }>({
-    open: false,
-    vendor: null,
-  });
+  }>({ open: false, vendor: null });
 
   useEffect(() => {
     fetchVendors();
@@ -47,9 +42,8 @@ export default function VendorsPage() {
         subtitle="Administration de votre force de vente terrain."
         icon={Users}
       />
-
       <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
-        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
+        <div className="max-w-7xl mx-auto space-y-6">
           <FilterBar
             hasActiveFilters={hasActiveFilters}
             onReset={() =>
@@ -63,25 +57,27 @@ export default function VendorsPage() {
               {
                 label: "Recherche",
                 icon: Search,
+                isActive: filters.search !== "",
                 render: (
                   <Input
                     placeholder="Nom, Code..."
                     value={filters.search}
                     onChange={(e) => setFilters({ search: e.target.value })}
-                    className="h-9 bg-zinc-50"
+                    className="h-9 bg-zinc-50 border-none"
                   />
                 ),
               },
               {
                 label: "Distributeur",
                 icon: Store,
+                isActive: filters.distributor_id !== "all",
                 render: (
                   <Select
                     value={filters.distributor_id}
                     onValueChange={(v) => setFilters({ distributor_id: v })}
                   >
-                    <SelectTrigger className="h-9 bg-zinc-50">
-                      <SelectValue />
+                    <SelectTrigger className="h-9 bg-zinc-50 border-none">
+                      <SelectValue className="truncate" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">
@@ -99,12 +95,13 @@ export default function VendorsPage() {
               {
                 label: "Type Vendeur",
                 icon: Users,
+                isActive: filters.vendor_type !== "all",
                 render: (
                   <Select
                     value={filters.vendor_type}
                     onValueChange={(v) => setFilters({ vendor_type: v })}
                   >
-                    <SelectTrigger className="h-9 bg-zinc-50">
+                    <SelectTrigger className="h-9 bg-zinc-50 border-none">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -118,7 +115,6 @@ export default function VendorsPage() {
               },
             ]}
           />
-
           <div className="bg-white rounded-xl border border-zinc-200 shadow-sm">
             <div className="p-4 border-b flex justify-between items-center bg-white rounded-t-xl">
               <h3 className="font-bold text-zinc-700">
@@ -131,14 +127,12 @@ export default function VendorsPage() {
                 <UserPlus className="w-4 h-4 mr-2" /> Nouveau Vendeur
               </Button>
             </div>
-
             <VendorTable
               onEdit={(v) => setModalState({ open: true, vendor: v })}
             />
           </div>
         </div>
       </main>
-
       <VendorModal
         open={modalState.open}
         vendor={modalState.vendor}

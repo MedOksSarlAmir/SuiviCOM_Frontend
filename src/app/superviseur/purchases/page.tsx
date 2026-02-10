@@ -60,7 +60,6 @@ export default function PurchasesPage() {
         subtitle="Historique et gestion des approvisionnements usine."
         icon={ShoppingBag}
       />
-
       <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <FilterBar
@@ -78,25 +77,27 @@ export default function PurchasesPage() {
               {
                 label: "Recherche",
                 icon: Search,
+                isActive: filters.search !== "",
                 render: (
                   <Input
                     placeholder="N° ou Nom..."
                     value={filters.search}
                     onChange={(e) => setFilters({ search: e.target.value })}
-                    className="h-9 bg-zinc-50"
+                    className="h-9 bg-zinc-50 border-none"
                   />
                 ),
               },
               {
                 label: "Partenaire",
                 icon: Store,
+                isActive: filters.distributeur_id !== "all",
                 render: (
                   <Select
                     value={filters.distributeur_id}
                     onValueChange={(v) => setFilters({ distributeur_id: v })}
                   >
-                    <SelectTrigger className="h-9 bg-zinc-50">
-                      <SelectValue />
+                    <SelectTrigger className="h-9 bg-zinc-50 border-none">
+                      <SelectValue className="truncate" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous</SelectItem>
@@ -112,12 +113,13 @@ export default function PurchasesPage() {
               {
                 label: "Statut",
                 icon: Filter,
+                isActive: filters.status !== "all",
                 render: (
                   <Select
                     value={filters.status}
                     onValueChange={(v) => setFilters({ status: v })}
                   >
-                    <SelectTrigger className="h-9 bg-zinc-50">
+                    <SelectTrigger className="h-9 bg-zinc-50 border-none">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -131,28 +133,28 @@ export default function PurchasesPage() {
               {
                 label: "Période",
                 icon: Calendar,
+                isActive: !!filters.startDate || !!filters.endDate,
                 render: (
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Input
                       type="date"
                       value={filters.startDate || ""}
                       onChange={(e) =>
                         setFilters({ startDate: e.target.value })
                       }
-                      className="h-9 bg-zinc-50 text-xs"
+                      className="h-9 bg-zinc-50 border-none text-[10px] px-2"
                     />
                     <Input
                       type="date"
                       value={filters.endDate || ""}
                       onChange={(e) => setFilters({ endDate: e.target.value })}
-                      className="h-9 bg-zinc-50 text-xs"
+                      className="h-9 bg-zinc-50 border-none text-[10px] px-2"
                     />
                   </div>
                 ),
               },
             ]}
           />
-
           <div className="bg-white rounded-xl border border-zinc-200 shadow-sm">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-bold text-zinc-700">Flux d&apos;achats</h3>
@@ -163,9 +165,7 @@ export default function PurchasesPage() {
                 <Plus className="w-4 h-4 mr-2" /> Nouvel Achat
               </Button>
             </div>
-
             <PurchasesTable onEdit={(item) => setModal({ open: true, item })} />
-
             <div className="p-4 border-t bg-zinc-50/50 rounded-b-xl">
               <PaginationControl
                 total={total}
@@ -178,7 +178,6 @@ export default function PurchasesPage() {
           </div>
         </div>
       </main>
-
       <PurchaseModal
         open={modal.open}
         purchase={modal.item}

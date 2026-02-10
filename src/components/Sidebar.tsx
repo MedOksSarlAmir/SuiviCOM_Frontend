@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   Map,
   Store,
-  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -60,7 +59,6 @@ const MENU_CONFIG = {
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout } = useAuthStore();
 
   const userRole = user?.role?.toLowerCase() || "superviseur";

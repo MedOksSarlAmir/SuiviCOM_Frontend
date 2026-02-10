@@ -59,7 +59,7 @@ const INITIAL_STATE = {
   limit: 20,
   isLoading: false,
   isDependenciesLoaded: false,
-  filters: { status: "all", distributeur_id: "all" },
+  filters: { search: "", status: "all", distributeur_id: "all" },
   matrix: [],
   matrixTotal: 0,
   isMatrixLoading: false,
