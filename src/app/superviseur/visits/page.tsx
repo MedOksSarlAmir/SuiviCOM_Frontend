@@ -32,6 +32,7 @@ export default function VisitsPage() {
     fetchDependencies();
   }, [fetchDependencies]);
 
+  // Ensure first distributor is selected by default and never emptied
   useEffect(() => {
     if (!filters.distributor_id && distributors.length > 0) {
       setFilters((f) => ({
@@ -39,7 +40,7 @@ export default function VisitsPage() {
         distributor_id: distributors[0].id.toString(),
       }));
     }
-  }, [distributors]);
+  }, [distributors, filters.distributor_id]);
 
   useEffect(() => {
     if (filters.distributor_id && filters.date) {
@@ -48,28 +49,22 @@ export default function VisitsPage() {
     }
   }, [filters, fetchVisitMatrix]);
 
-  const hasActiveFilters =
+  const hasSecondaryFilters =
     filters.search !== "" || filters.vendor_type !== "all";
 
   return (
     <div className="flex-1 flex flex-col min-w-0 h-full bg-zinc-50/50">
       <ModuleHeader
         title="Visites Terrain"
-        subtitle="Performance vendeurs."
+        subtitle="Suivi de la couverture et performance des vendeurs."
         icon={ClipboardCheck}
       />
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-        <div className="max-w-[1400px] mx-auto space-y-6">
+
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-4">
+        <div className="max-w-[1400px] mx-auto space-y-4">
+          {/* PRIMARY SELECTION GROUP (Mandatory: Distributor & Date) */}
           <FilterBar
-            hasActiveFilters={hasActiveFilters}
-            onReset={() =>
-              setFilters({
-                ...filters, // Keep distributor_id and date
-                search: "",
-                vendor_type: "all",
-                page: 1,
-              })
-            }
+            hasActiveFilters={false} // No reset button for primary selection
             fields={[
               {
                 label: "Distributeur",
@@ -82,7 +77,10 @@ export default function VisitsPage() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue className="truncate" />
+                      <SelectValue
+                        className="truncate"
+                        placeholder="Choisir..."
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {distributors.map((d) => (
@@ -95,20 +93,43 @@ export default function VisitsPage() {
                 ),
               },
               {
-                label: "Date",
+                label: "Date du Rapport",
                 icon: Calendar,
                 render: (
-                  <Input
-                    type="date"
-                    value={filters.date}
-                    onChange={(e) =>
-                      setFilters({ ...filters, date: e.target.value, page: 1 })
-                    }
-                  />
+                  <div className="relative w-full h-full flex items-center">
+                    <Input
+                      type="date"
+                      value={filters.date}
+                      className="pl-9"
+                      onChange={(e) =>
+                        setFilters({
+                          ...filters,
+                          date: e.target.value,
+                          page: 1,
+                        })
+                      }
+                    />
+                    <Calendar className="absolute left-3 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  </div>
                 ),
               },
+            ]}
+          />
+
+          {/* SECONDARY FILTER GROUP (Optional: Type & Search) */}
+          <FilterBar
+            hasActiveFilters={hasSecondaryFilters}
+            onReset={() =>
+              setFilters({
+                ...filters, // Keep distributor_id and date
+                search: "",
+                vendor_type: "all",
+                page: 1,
+              })
+            }
+            fields={[
               {
-                label: "Type",
+                label: "Type Vendeur",
                 icon: Users,
                 isActive: filters.vendor_type !== "all",
                 render: (
@@ -119,10 +140,10 @@ export default function VisitsPage() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Tous" />
+                      <SelectValue placeholder="Tous les types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="all">Tous les types</SelectItem>
                       <SelectItem value="gros">Gros</SelectItem>
                       <SelectItem value="detail">Détail</SelectItem>
                       <SelectItem value="superette">Supérette</SelectItem>
@@ -136,7 +157,7 @@ export default function VisitsPage() {
                 isActive: filters.search !== "",
                 render: (
                   <Input
-                    placeholder="Code / Nom..."
+                    placeholder="Code ou Nom..."
                     value={filters.search}
                     onChange={(e) =>
                       setFilters({
@@ -150,8 +171,10 @@ export default function VisitsPage() {
               },
             ]}
           />
+
+          {/* DATA TABLE AREA */}
           {filters.distributor_id ? (
-            <div className="flex flex-col border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex flex-col border border-zinc-200 rounded-xl overflow-hidden shadow-sm animate-in fade-in duration-500">
               <VisitsMatrix filters={filters} />
               <div className="bg-white border-t border-zinc-200 p-4">
                 <PaginationControl
@@ -164,7 +187,10 @@ export default function VisitsPage() {
             </div>
           ) : (
             <div className="h-80 flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 rounded-xl bg-white text-zinc-400">
-              <p>Sélectionnez un distributeur.</p>
+              <ClipboardCheck className="w-12 h-12 mb-4 opacity-20" />
+              <p className="font-medium">
+                Sélectionnez un distributeur pour afficher les données.
+              </p>
             </div>
           )}
         </div>
