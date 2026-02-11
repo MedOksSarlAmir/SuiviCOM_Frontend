@@ -178,13 +178,21 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   refreshGlobalInventory: async () => {
+    const { filters, fetchInventory } = get();
+    if (!filters.distributor_id) {
+      toast.error("Aucun distributeur sélectionné pour le rafraîchissement");
+      return false;
+    }
+
     try {
-      await api.post("/supervisor/inventory/refresh");
-      toast.success("Inventaire global synchronisé");
-      get().fetchInventory();
+      await api.post("/supervisor/inventory/refresh", {
+        distributor_id: parseInt(filters.distributor_id),
+      });
+      toast.success("Inventaire théorique recalculé");
+      fetchInventory(); // Reload table
       return true;
     } catch (error: any) {
-      toast.error("Erreur de synchronisation");
+      toast.error(error.response?.data?.message || "Erreur de synchronisation");
       return false;
     }
   },

@@ -154,11 +154,14 @@ export default function InventoryPage() {
       <Dialog open={showRefresh} onOpenChange={setShowRefresh}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertCircle /> Action Critique
+            <DialogTitle className="flex items-center gap-2 text-amir-blue">
+              <RefreshCcw className="w-5 h-5" /> Recalculer l&apos;inventaire
             </DialogTitle>
             <DialogDescription className="pt-2 text-sm">
-              Voulez-vous recalculer l&apos;intégralité des stocks ?
+              Cette action va recalculer l&apos;intégralité de{" "}
+              <strong>l&apos;inventaire théorique</strong>{" "}
+              en se basant sur l&apos;historique des achats, ventes et
+              ajustements pour <strong>ce distributeur uniquement</strong>.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -166,14 +169,14 @@ export default function InventoryPage() {
               Annuler
             </Button>
             <Button
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-amir-blue hover:bg-amir-blue/90"
               onClick={handleGlobalRefresh}
               disabled={refreshing}
             >
               {refreshing ? (
-                <Loader2 className="animate-spin w-4 h-4" />
+                <Loader2 className="animate-spin w-4 h-4 mr-2" />
               ) : (
-                "Oui, Recalculer"
+                "Confirmer le recalcul"
               )}
             </Button>
           </DialogFooter>
