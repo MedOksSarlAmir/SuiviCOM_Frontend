@@ -34,7 +34,7 @@ export function UserModal({ user, onClose }: any) {
     prenom: user?.prenom || "",
     region_id: user?.region_id?.toString() || "",
     zone_id: user?.zone_id?.toString() || "",
-    wilaya_id: user?.wilaya_id?.toString() || "",
+    wilaya_id: Array.from(user?.wilayas || new Set<string>()).join(",") || "",
   });
 
   useEffect(() => {

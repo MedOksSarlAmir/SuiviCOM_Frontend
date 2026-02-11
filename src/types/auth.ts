@@ -14,8 +14,7 @@ export interface User {
   role: UserRole;
   last_name?: string;
   first_name?: string;
-  wilaya?: string;
-  wilaya_id?: number;
+  wilayas?: Set<string>;
   zone?: string;
   zone_id?: number;
   region?: string;
