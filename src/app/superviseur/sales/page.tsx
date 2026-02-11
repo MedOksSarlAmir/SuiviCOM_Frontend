@@ -6,6 +6,9 @@ import { FilterBar } from "@/components/superviseur/shared/FilterBar";
 import { SalesWeeklyGrid } from "@/components/superviseur/sales/SalesWeeklyGrid";
 import { PaginationControl } from "@/components/ui/pagination-control";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -21,6 +24,9 @@ import {
   Search,
   Filter,
   Layers,
+  Save,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
 const getSaturday = (selectedDate: Date) => {
@@ -44,6 +50,11 @@ export default function SalesPage() {
     fetchWeeklyMatrix,
     total,
     isLoading,
+    // Bulk save states
+    isAutoSave,
+    toggleAutoSave,
+    pendingChanges,
+    saveAllSales,
   } = useSalesStore();
 
   useEffect(() => {
@@ -72,6 +83,8 @@ export default function SalesPage() {
   thuDate.setDate(satDate.getDate() + 5);
   const weekLabel = `Du ${satDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} au ${thuDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`;
 
+  const pendingCount = Object.keys(pendingChanges).length;
+
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50/50">
       <ModuleHeader
@@ -80,10 +93,58 @@ export default function SalesPage() {
         icon={ShoppingCart}
       />
 
+      {/* SAVE CONTROLS BAR */}
+      <div className="bg-white border-b px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center space-x-3 bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-200">
+            <Switch
+              id="auto-save-sales"
+              checked={isAutoSave}
+              onCheckedChange={toggleAutoSave}
+            />
+            <Label
+              htmlFor="auto-save-sales"
+              className="text-[11px] font-bold uppercase tracking-wider cursor-pointer"
+            >
+              Sauvegarde auto :{" "}
+              {isAutoSave ? (
+                <span className="text-emerald-600">Active</span>
+              ) : (
+                <span className="text-zinc-400">Désactivée</span>
+              )}
+            </Label>
+          </div>
+
+          {pendingCount > 0 && (
+            <div className="flex items-center gap-2 text-amber-600 animate-in fade-in slide-in-from-left-2">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-xs font-bold">
+                {pendingCount} modification(s) non enregistrée(s)
+              </span>
+            </div>
+          )}
+        </div>
+
+        {!isAutoSave && (
+          <Button
+            size="sm"
+            disabled={pendingCount === 0 || isLoading}
+            onClick={saveAllSales}
+            className="bg-amir-blue hover:bg-amir-blue/90 text-white shadow-md transition-all active:scale-95"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Enregistrer tout
+          </Button>
+        )}
+      </div>
+
       <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
         <div className="max-w-[1600px] mx-auto space-y-6">
-          {/* PRIMARY SELECTION GROUP (Distributor, Vendor, Date) */}
-          {/* This bar has no reset button as these are mandatory */}
+          {/* PRIMARY SELECTION GROUP */}
           <FilterBar
             hasActiveFilters={false}
             fields={[
@@ -170,7 +231,7 @@ export default function SalesPage() {
             ]}
           />
 
-          {/* SECONDARY FILTER GROUP (Search, Type, Family, Format) */}
+          {/* SECONDARY FILTER GROUP */}
           {filters.vendor_id ? (
             <div className="space-y-4 animate-in fade-in duration-500">
               <FilterBar
@@ -182,7 +243,7 @@ export default function SalesPage() {
                 }
                 onReset={() =>
                   setFilters({
-                    ...filters, // KEEP primary selection
+                    ...filters,
                     search: "",
                     category: "all",
                     format: "all",

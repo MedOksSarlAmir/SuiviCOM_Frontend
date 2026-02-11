@@ -14,6 +14,13 @@ interface VisitMatrixItem {
   active: boolean;
 }
 
+interface PendingVisit {
+  vendor_id: number;
+  field: string;
+  value: number;
+  date: string;
+}
+
 interface VisitState {
   visits: any[];
   total: number;
@@ -26,15 +33,25 @@ interface VisitState {
     search?: string;
     distributeur_id?: string;
   };
-  isErrorCell: Record<string, boolean>;
   matrixData: VisitMatrixItem[];
+
+  // New States for Bulk/Auto Save
+  isAutoSave: boolean;
+  pendingChanges: Record<string, PendingVisit>;
   isSavingCell: Record<string, boolean>;
+  isErrorCell: Record<string, boolean>;
+
+  // Actions
   setPage: (page: number) => void;
   setLimit: (limit: number) => void;
   setFilters: (filters: Partial<VisitState["filters"]>) => void;
   fetchVisits: () => Promise<void>;
   fetchVisitMatrix: (params: any) => Promise<void>;
-  upsertVisitCell: (payload: any) => Promise<void>;
+
+  toggleAutoSave: () => void;
+  stageChange: (payload: PendingVisit, originalValue: number) => void;
+  savePendingChanges: (filters: any) => Promise<void>;
+  upsertVisitCell: (payload: PendingVisit) => Promise<void>;
   reset: () => void;
 }
 
@@ -42,16 +59,20 @@ const INITIAL_STATE = {
   visits: [],
   matrixData: [],
   isSavingCell: {},
+  isErrorCell: {},
   total: 0,
   isLoading: false,
   page: 1,
   limit: 20,
-  isErrorCell: {},
-  filters: { distributeur_id: "all" },
+  filters: { distributor_id: "all", search: "", startDate: "", endDate: "" },
+  isAutoSave: false, // Default to Bulk Save
+  pendingChanges: {},
 };
 
 export const useVisitStore = create<VisitState>((set, get) => ({
   ...INITIAL_STATE,
+
+  toggleAutoSave: () => set((s) => ({ isAutoSave: !s.isAutoSave })),
 
   setPage: (page) => {
     set({ page });
@@ -71,7 +92,6 @@ export const useVisitStore = create<VisitState>((set, get) => ({
     const { page, limit, filters } = get();
     try {
       const res = await api.get("/supervisor/visits", {
-        // Prefix added
         params: {
           page,
           pageSize: limit,
@@ -85,7 +105,6 @@ export const useVisitStore = create<VisitState>((set, get) => ({
         },
       });
 
-      // Map Backend metrics to Frontend names for the History list
       const mappedVisits = res.data.data.map((v: any) => ({
         ...v,
         visites_programmees: v.planned,
@@ -100,14 +119,10 @@ export const useVisitStore = create<VisitState>((set, get) => ({
   },
 
   fetchVisitMatrix: async (params) => {
-    set({ isLoading: true });
+    set({ isLoading: true, pendingChanges: {} }); // Clear pending on refresh
     try {
-      // Path variable mapping dist_id is now a query param distributor_id in new BE
       const res = await api.get("/supervisor/visits/matrix", {
-        params: {
-          ...params,
-          pageSize: 25,
-        },
+        params: { ...params, pageSize: 25 },
       });
       set({
         matrixData: res.data.data,
@@ -119,31 +134,66 @@ export const useVisitStore = create<VisitState>((set, get) => ({
     }
   },
 
+  stageChange: (payload, originalValue) => {
+    const key = `${payload.vendor_id}-${payload.field}`;
+
+    // If user changed it back to original, remove from pending
+    if (payload.value === originalValue) {
+      set((state) => {
+        const newPending = { ...state.pendingChanges };
+        delete newPending[key];
+        return { pendingChanges: newPending };
+      });
+      return;
+    }
+
+    set((state) => ({
+      pendingChanges: { ...state.pendingChanges, [key]: payload },
+    }));
+  },
+
+  savePendingChanges: async (filters) => {
+    const { pendingChanges} = get();
+    const entries = Object.values(pendingChanges);
+    if (entries.length === 0) return;
+    set({ isLoading: true });
+
+    console.log(filters)
+    try {
+      // 🔹 ONE SINGLE REQUEST INSTEAD OF PROMISE.ALL
+      await api.post("/supervisor/visits/bulk-upsert", entries);
+
+      toast.success(`${entries.length} changements enregistrés avec succès`);
+
+      set({ pendingChanges: {}, isLoading: false });
+      get().fetchVisitMatrix(filters);
+    } catch (err: any) {
+      set({ isLoading: false });
+      toast.error("Erreur lors de la sauvegarde groupée");
+    }
+  },
+
   upsertVisitCell: async (payload) => {
     const { vendor_id, field, value } = payload;
     const cellKey = `${vendor_id}-${field}`;
+    const dataField = field === "prog" ? "planned" : field;
+
     set((state) => ({
       isSavingCell: { ...state.isSavingCell, [cellKey]: true },
       isErrorCell: { ...state.isErrorCell, [cellKey]: false },
+      matrixData: state.matrixData.map((v) =>
+        v.vendor_id === vendor_id ? { ...v, [dataField]: value } : v,
+      ),
     }));
+
     try {
-      // Field logic: backend supports both "prog" and "planned".
-      // We send payload as is.
-      await api.post("/supervisor/visits/upsert", payload); // Prefix added
-      const { matrixData } = get();
-      const newData = matrixData.map((v) =>
-        v.vendor_id === vendor_id ? { ...v, [field]: value } : v,
-      );
-      set({ matrixData: newData });
-      toast.success("Donnée visite mise à jour", { duration: 1500 });
+      await api.post("/supervisor/visits/upsert", payload);
+      toast.success("Mis à jour", { duration: 1000 });
     } catch (err: any) {
       set((state) => ({
         isErrorCell: { ...state.isErrorCell, [cellKey]: true },
       }));
-      toast.error(
-        `Erreur de sauvegarde visite : ${err.response?.data?.message || "Erreur inconnue"}`,
-        { duration: 10000 },
-      );
+      toast.error("Erreur de sauvegarde");
     } finally {
       set((state) => ({
         isSavingCell: { ...state.isSavingCell, [cellKey]: false },

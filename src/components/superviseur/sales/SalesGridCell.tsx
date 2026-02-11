@@ -1,19 +1,8 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useSalesStore } from "@/stores/SaleStore";
-import { Loader2, AlertCircle, RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface CellProps {
-  productId: number;
-  date: string;
-  initialValue: number;
-  rowIdx: number;
-  colIdx: number;
-  onKeyDown: (e: React.KeyboardEvent, r: number, c: number) => void;
-  inputRef: (el: HTMLInputElement | null) => void;
-  context: { vendor_id: string; distributor_id: string };
-}
 
 export const SalesGridCell = React.memo(
   ({
@@ -25,84 +14,83 @@ export const SalesGridCell = React.memo(
     onKeyDown,
     inputRef,
     context,
-  }: CellProps) => {
-    const [val, setVal] = useState(() => initialValue.toString());
+  }: any) => {
+    const [localVal, setLocalVal] = useState(initialValue.toString());
 
+    const isAutoSave = useSalesStore((s) => s.isAutoSave);
     const upsert = useSalesStore((s) => s.upsertSaleItem);
+    const stage = useSalesStore((s) => s.stageSaleChange);
 
     const cellKey = `${productId}-${date}`;
     const isSaving = useSalesStore((s) => s.isSavingCell[cellKey]);
     const isError = useSalesStore((s) => s.isErrorCell[cellKey]);
+    const isDirty = useSalesStore((s) => !!s.pendingChanges[cellKey]);
 
-    const triggerSave = useCallback(
-      async (forcedValue?: string) => {
-        const numericVal = parseInt(forcedValue ?? val) || 0;
+    useEffect(() => {
+      setLocalVal(initialValue.toString());
+    }, [initialValue]);
 
-        // Only save if value changed OR if we are retrying an error
-        if (numericVal === initialValue && !isError) return;
+    const handleBlur = () => {
+      const num = parseInt(localVal) || 0;
+      const payload = {
+        vendor_id: Number(context.vendor_id),
+        distributor_id: Number(context.distributor_id),
+        product_id: productId,
+        date,
+        quantity: num,
+      };
 
-        await upsert({
-          vendor_id: Number(context.vendor_id),
-          distributor_id: Number(context.distributor_id),
-          product_id: productId,
-          date,
-          quantity: numericVal,
-        });
-      },
-      [val, initialValue, isError, upsert, context, productId, date],
-    );
+      if (isAutoSave) {
+        if (num === initialValue && !isError) return;
+        upsert(payload);
+      } else {
+        stage(payload, initialValue);
+      }
+    };
 
     return (
       <div
         className={cn(
-          "relative h-full w-full transition-colors",
-          isError && "bg-red-50 ring-1 ring-inset ring-red-500 z-10",
+          "relative h-full w-full transition-all border-2 border-transparent",
+          isDirty && "bg-amber-50/50 border-amber-200",
+          isError && "bg-red-50 border-red-200",
         )}
       >
         <input
           ref={inputRef}
           type="number"
-          value={val}
+          // 🔹 CHANGE: Show empty string if value is "0"
+          value={localVal === "0" ? "" : localVal}
+          placeholder="0"
           onFocus={(e) => e.target.select()}
-          onChange={(e) => setVal(e.target.value)}
-          onBlur={() => triggerSave()}
+          onChange={(e) => setLocalVal(e.target.value || "0")} // 🔹 Map empty back to "0"
+          onBlur={handleBlur}
           onKeyDown={(e) => onKeyDown(e, rowIdx, colIdx)}
           className={cn(
-            "w-full h-10 text-center bg-transparent outline-none transition-all font-mono text-sm border-none focus-visible:ring-0",
-            val === "0" ? "text-zinc-300" : "text-zinc-900 font-bold",
+            "w-full h-10 text-center bg-transparent outline-none font-mono text-sm focus-visible:ring-0",
+            localVal === "0" ? "text-zinc-300" : "text-zinc-900 font-bold",
             isSaving && "opacity-50",
             isError && "text-red-600",
           )}
         />
-
-        {/* Saving indicator */}
         {isSaving && (
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+          <div className="absolute right-1 top-1/2 -translate-y-1/2">
             <Loader2 className="w-3 h-3 animate-spin text-amir-blue" />
           </div>
         )}
-
-        {/* Error Retry UI */}
+        {isDirty && !isSaving && !isError && (
+          <div className="absolute top-0 right-0 w-2 h-2 bg-amber-500 rounded-bl-sm" />
+        )}
         {isError && !isSaving && (
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-red-50 pl-1">
-            <AlertCircle className="w-3 h-3 text-red-500" />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                triggerSave();
-              }}
-              className="p-1 hover:bg-red-200 rounded text-red-700 transition-colors"
-              title="Réessayer"
-            >
-              <RefreshCcw className="w-3 h-3" />
-            </button>
-          </div>
+          <button
+            onClick={handleBlur}
+            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-red-600"
+          >
+            <RefreshCcw className="w-3 h-3" />
+          </button>
         )}
       </div>
     );
   },
 );
-
 SalesGridCell.displayName = "SalesGridCell";

@@ -7,6 +7,9 @@ import { FilterBar } from "@/components/superviseur/shared/FilterBar";
 import { VisitsMatrix } from "@/components/superviseur/visits/VisitsMatrix";
 import { PaginationControl } from "@/components/ui/pagination-control";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,10 +17,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ClipboardCheck, Store, Calendar, Users, Search } from "lucide-react";
+import {
+  ClipboardCheck,
+  Store,
+  Calendar,
+  Users,
+  Search,
+  Save,
+  Loader2,
+} from "lucide-react";
 
 export default function VisitsPage() {
-  const { fetchVisitMatrix, total } = useVisitStore();
+  const {
+    fetchVisitMatrix,
+    total,
+    pendingChanges,
+    savePendingChanges,
+    isAutoSave,
+    toggleAutoSave,
+    isLoading,
+  } = useVisitStore();
   const { distributors, fetchDependencies } = useSalesStore();
 
   const [filters, setFilters] = useState({
@@ -28,12 +47,10 @@ export default function VisitsPage() {
     page: 1,
   });
 
-  // 1. Initial Load
   useEffect(() => {
     fetchDependencies();
   }, [fetchDependencies]);
 
-  // 2. Set default distributor once they are loaded
   useEffect(() => {
     if (distributors.length > 0 && !filters.distributor_id) {
       setFilters((prev) => ({
@@ -41,9 +58,8 @@ export default function VisitsPage() {
         distributor_id: distributors[0].id.toString(),
       }));
     }
-  }, [distributors, filters.distributor_id]);
+  }, [distributors]);
 
-  // 3. Fetch Matrix when filters change
   useEffect(() => {
     if (filters.distributor_id && filters.date) {
       const delay = setTimeout(() => fetchVisitMatrix(filters), 300);
@@ -51,8 +67,7 @@ export default function VisitsPage() {
     }
   }, [filters, fetchVisitMatrix]);
 
-  const hasActiveFilters =
-    filters.search !== "" || filters.vendor_type !== "all";
+  const pendingCount = Object.keys(pendingChanges).length;
 
   return (
     <div className="flex-1 flex flex-col min-w-0 h-full bg-zinc-50/50">
@@ -61,13 +76,59 @@ export default function VisitsPage() {
         subtitle="Performance vendeurs."
         icon={ClipboardCheck}
       />
+
+      {/* Save Control Bar */}
+      <div className="bg-white border-b px-8 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="auto-save"
+              checked={isAutoSave}
+              onCheckedChange={toggleAutoSave}
+            />
+            <Label
+              htmlFor="auto-save"
+              className="text-xs font-medium cursor-pointer"
+            >
+              Sauvegarde automatique{" "}
+              {isAutoSave ? (
+                <span className="text-emerald-600">(Activée)</span>
+              ) : (
+                <span className="text-zinc-400">(Désactivée)</span>
+              )}
+            </Label>
+          </div>
+          {pendingCount > 0 && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold animate-pulse">
+              {pendingCount} modification(s) en attente
+            </span>
+          )}
+        </div>
+        {!isAutoSave && (
+          <Button
+            disabled={pendingCount === 0 || isLoading}
+            onClick={() => savePendingChanges(filters)}
+            className="bg-amir-blue hover:bg-amir-blue/90 text-white"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Enregistrer les changements
+          </Button>
+        )}
+      </div>
+
       <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
         <div className="max-w-[1400px] mx-auto space-y-6">
           <FilterBar
-            hasActiveFilters={hasActiveFilters}
+            hasActiveFilters={
+              filters.search !== "" || filters.vendor_type !== "all"
+            }
             onReset={() =>
-              setFilters((prev) => ({
-                ...prev, // Keep distributor and date
+              setFilters((p) => ({
+                ...p,
                 search: "",
                 vendor_type: "all",
                 page: 1,
@@ -81,18 +142,15 @@ export default function VisitsPage() {
                   <Select
                     value={filters.distributor_id}
                     onValueChange={(val) =>
-                      setFilters((prev) => ({
-                        ...prev,
+                      setFilters((p) => ({
+                        ...p,
                         distributor_id: val,
                         page: 1,
                       }))
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue
-                        className="truncate"
-                        placeholder="Choisir..."
-                      />
+                      <SelectValue placeholder="Choisir..." />
                     </SelectTrigger>
                     <SelectContent>
                       {distributors.map((d) => (
@@ -111,10 +169,9 @@ export default function VisitsPage() {
                   <Input
                     type="date"
                     value={filters.date}
-                    className="cursor-pointer"
                     onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
+                      setFilters((p) => ({
+                        ...p,
                         date: e.target.value,
                         page: 1,
                       }))
@@ -130,11 +187,7 @@ export default function VisitsPage() {
                   <Select
                     value={filters.vendor_type}
                     onValueChange={(val) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        vendor_type: val,
-                        page: 1,
-                      }))
+                      setFilters((p) => ({ ...p, vendor_type: val, page: 1 }))
                     }
                   >
                     <SelectTrigger>
@@ -158,8 +211,8 @@ export default function VisitsPage() {
                     placeholder="Code / Nom..."
                     value={filters.search}
                     onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
+                      setFilters((p) => ({
+                        ...p,
                         search: e.target.value,
                         page: 1,
                       }))
@@ -171,7 +224,7 @@ export default function VisitsPage() {
           />
 
           {filters.distributor_id ? (
-            <div className="flex flex-col border border-zinc-200 rounded-xl overflow-hidden shadow-sm animate-in fade-in duration-500">
+            <div className="flex flex-col border border-zinc-200 rounded-xl overflow-hidden shadow-sm bg-white">
               <VisitsMatrix filters={filters} />
               <div className="bg-white border-t border-zinc-200 p-4">
                 <PaginationControl

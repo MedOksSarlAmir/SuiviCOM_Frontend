@@ -80,7 +80,7 @@ export default function PurchasesPage() {
                 isActive: filters.search !== "",
                 render: (
                   <Input
-                    placeholder="N° ou Nom..."
+                    placeholder="ID de l'achat"
                     value={filters.search}
                     onChange={(e) => setFilters({ search: e.target.value })}
                     className="h-9 bg-zinc-50 border-none"

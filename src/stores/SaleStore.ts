@@ -37,35 +37,44 @@ interface SalesFilters {
   page: number;
 }
 
+interface PendingSale {
+  vendor_id: number;
+  distributor_id: number;
+  product_id: number;
+  date: string;
+  quantity: number;
+}
+
 interface SalesState {
-  // Data
   weeklyData: WeeklyProduct[];
   weeklyDates: string[];
   weeklyStatuses: Record<string, string>;
   total: number;
   isLoading: boolean;
-
-  // Lookups
   distributors: any[];
   currentVendors: any[];
   categories: CategoryWithFormats[];
   productTypes: any[];
   vendorsCache: Record<number, any[]>;
+  isDependenciesLoaded: boolean;
+  filters: SalesFilters;
 
-  // UI State
+  // Bulk Save States
+  isAutoSave: boolean;
+  pendingChanges: Record<string, PendingSale>;
   isSavingCell: Record<string, boolean>;
   isErrorCell: Record<string, boolean>;
-  isDependenciesLoaded: boolean;
-
-  // Filters (Persisted in store)
-  filters: SalesFilters;
 
   // Actions
   setFilters: (filters: Partial<SalesFilters>) => void;
   fetchDependencies: () => Promise<void>;
   fetchVendorsByDistributor: (id: number) => Promise<void>;
   fetchWeeklyMatrix: (params: SalesFilters) => Promise<void>;
-  upsertSaleItem: (payload: any) => Promise<void>;
+
+  toggleAutoSave: () => void;
+  stageSaleChange: (payload: PendingSale, originalValue: number) => void;
+  saveAllSales: () => Promise<void>;
+  upsertSaleItem: (payload: PendingSale) => Promise<void>;
   updateSaleStatus: (payload: any) => Promise<void>;
   reset: () => void;
 }
@@ -73,7 +82,7 @@ interface SalesState {
 const INITIAL_FILTERS: SalesFilters = {
   distributor_id: "",
   vendor_id: "",
-  start_date: getSaturday(new Date()),
+  start_date: new Date().toISOString().split("T")[0], // placeholder
   category: "all",
   format: "all",
   product_type: "all",
@@ -81,7 +90,7 @@ const INITIAL_FILTERS: SalesFilters = {
   page: 1,
 };
 
-const INITIAL_STATE = {
+export const useSalesStore = create<SalesState>((set, get) => ({
   weeklyData: [],
   weeklyDates: [],
   weeklyStatuses: {},
@@ -95,94 +104,58 @@ const INITIAL_STATE = {
   productTypes: [],
   vendorsCache: {},
   isDependenciesLoaded: false,
-};
-
-export const useSalesStore = create<SalesState>((set, get) => ({
-  ...INITIAL_STATE,
   filters: INITIAL_FILTERS,
+  isAutoSave: false,
+  pendingChanges: {},
 
-  setFilters: (newFilters) => {
-    set((state) => ({
-      filters: { ...state.filters, ...newFilters },
-    }));
-  },
+  toggleAutoSave: () => set((s) => ({ isAutoSave: !s.isAutoSave })),
+
+  setFilters: (newFilters) =>
+    set((state) => ({ filters: { ...state.filters, ...newFilters } })),
 
   fetchDependencies: async () => {
-    // Only fetch metadata once
-    if (!get().isDependenciesLoaded) {
-      try {
-        const [dRes, cRes, tRes] = await Promise.all([
-          api.get("/shared/distributors"),
-          api.get("/shared/categories-with-formats"),
-          api.get("/shared/admin-metadata"),
-        ]);
-
-        set({
-          distributors: dRes.data,
-          categories: cRes.data,
-          productTypes: tRes.data.product_types,
-          isDependenciesLoaded: true,
-        });
-
-        // AUTO-SELECT FIRST DISTRIBUTOR if none is selected
-        const currentFilters = get().filters;
-        if (!currentFilters.distributor_id && dRes.data.length > 0) {
-          const firstDistId = dRes.data[0].id.toString();
-          get().setFilters({ distributor_id: firstDistId });
-          get().fetchVendorsByDistributor(parseInt(firstDistId));
-        }
-      } catch (err) {
-        console.error("Failed to fetch dependencies", err);
-      }
+    if (get().isDependenciesLoaded) return;
+    try {
+      const [dRes, cRes, tRes] = await Promise.all([
+        api.get("/shared/distributors"),
+        api.get("/shared/categories-with-formats"),
+        api.get("/shared/admin-metadata"),
+      ]);
+      set({
+        distributors: dRes.data,
+        categories: cRes.data,
+        productTypes: tRes.data.product_types,
+        isDependenciesLoaded: true,
+      });
+    } catch (err) {
+      console.error(err);
     }
   },
 
   fetchVendorsByDistributor: async (id) => {
-    const updateVendorSelection = (vendors: any[]) => {
-      const currentVendorId = get().filters.vendor_id;
-      // If no vendor selected, or current vendor doesn't belong to this distributor, select the first one
-      const isValid = vendors.some((v) => v.id.toString() === currentVendorId);
-      if ((!currentVendorId || !isValid) && vendors.length > 0) {
-        get().setFilters({ vendor_id: vendors[0].id.toString() });
-      }
-    };
-
     if (get().vendorsCache[id]) {
-      const cached = get().vendorsCache[id];
-      set({ currentVendors: cached });
-      updateVendorSelection(cached);
+      set({ currentVendors: get().vendorsCache[id] });
       return;
     }
-
     try {
       const res = await api.get(`/shared/vendors/distributor/${id}`);
-      set((state) => ({
-        vendorsCache: { ...state.vendorsCache, [id]: res.data },
+      set((s) => ({
+        vendorsCache: { ...s.vendorsCache, [id]: res.data },
         currentVendors: res.data,
       }));
-      updateVendorSelection(res.data);
     } catch {
       set({ currentVendors: [] });
     }
   },
 
   fetchWeeklyMatrix: async (params) => {
-    if (!params.distributor_id || !params.vendor_id) return;
-
-    set({ isLoading: true });
+    set({ isLoading: true, pendingChanges: {} });
     try {
       const res = await api.get("/supervisor/sales/matrix", {
         params: { ...params, pageSize: 25 },
       });
-
-      const mappedData = res.data.data.map((p: any) => ({
-        ...p,
-        name: p.name,
-        price: p.unit_price,
-      }));
-
       set({
-        weeklyData: mappedData,
+        weeklyData: res.data.data,
         weeklyDates: res.data.dates,
         weeklyStatuses: res.data.statuses || {},
         total: res.data.total,
@@ -190,6 +163,40 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       });
     } catch {
       set({ isLoading: false, weeklyData: [] });
+    }
+  },
+
+  stageSaleChange: (payload, originalValue) => {
+    const key = `${payload.product_id}-${payload.date}`;
+    if (payload.quantity === originalValue) {
+      set((s) => {
+        const next = { ...s.pendingChanges };
+        delete next[key];
+        return { pendingChanges: next };
+      });
+      return;
+    }
+    set((s) => ({ pendingChanges: { ...s.pendingChanges, [key]: payload } }));
+  },
+
+  saveAllSales: async () => {
+    const { pendingChanges, filters } = get();
+    const items = Object.values(pendingChanges);
+    if (items.length === 0) return;
+
+    set({ isLoading: true });
+    try {
+      // 🔹 ONE SINGLE REQUEST
+      await api.post("/supervisor/sales/bulk-upsert", items);
+
+      toast.success("Toutes les modifications ont été enregistrées");
+
+      set({ pendingChanges: {}, isLoading: false });
+      // Refresh to update totals in UI
+      get().fetchWeeklyMatrix(filters);
+    } catch (err: any) {
+      set({ isLoading: false });
+      toast.error("Échec de la sauvegarde groupée");
     }
   },
 
@@ -202,13 +209,10 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     }));
     try {
       await api.post("/supervisor/sales/upsert", payload);
-      toast.success("Quantité mise à jour", { duration: 2000 });
-    } catch (err: any) {
+      toast.success("Mis à jour", { duration: 1000 });
+    } catch {
       set((s) => ({ isErrorCell: { ...s.isErrorCell, [cellKey]: true } }));
-      toast.error(
-        `Erreur d'enregistrement : ${err.response?.data?.message || "Erreur inconnue"}`,
-        { duration: 10000 },
-      );
+      toast.error("Erreur");
     } finally {
       set((s) => ({ isSavingCell: { ...s.isSavingCell, [cellKey]: false } }));
     }
@@ -217,20 +221,23 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   updateSaleStatus: async (payload) => {
     try {
       await api.post("/supervisor/sales/status", payload);
-      set((state) => ({
-        weeklyStatuses: {
-          ...state.weeklyStatuses,
-          [payload.date]: payload.status,
-        },
+      set((s) => ({
+        weeklyStatuses: { ...s.weeklyStatuses, [payload.date]: payload.status },
       }));
       toast.success(`Statut mis à jour`);
-    } catch (error: any) {
-      toast.error(
-        `Erreur de changement de statut : ${error.response?.data?.message || "Erreur inconnue"}`,
-        { duration: 10000 },
-      );
+    } catch (e: any) {
+      toast.error("Erreur statut");
     }
   },
 
-  reset: () => set({ ...INITIAL_STATE, filters: INITIAL_FILTERS }),
+  reset: () =>
+    set({
+      weeklyData: [],
+      weeklyDates: [],
+      weeklyStatuses: {},
+      isSavingCell: {},
+      isErrorCell: {},
+      pendingChanges: {},
+      filters: INITIAL_FILTERS,
+    }),
 }));
