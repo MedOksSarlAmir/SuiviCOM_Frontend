@@ -7,7 +7,7 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SuiviCom AMIR - Sales Tracking",
+  title: "SuiviCom | AMIR 2000",
   description: "Système de suivi commercial pour Sarl AMIR 2000",
 };
 
