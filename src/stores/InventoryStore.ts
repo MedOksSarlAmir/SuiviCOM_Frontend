@@ -1,3 +1,4 @@
+// src/stores/InventoryStore.ts
 import { create } from "zustand";
 import api from "@/services/api";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ interface InventoryState {
   historyTotal: number;
   historyPage: number;
   isLoadingHistory: boolean;
+
   setPage: (page: number) => void;
   setLimit: (limit: number) => void;
   setFilters: (filters: Partial<InventoryState["filters"]>) => void;
@@ -21,7 +23,17 @@ interface InventoryState {
     distId: number,
     prodId: number,
     reset?: boolean,
+    historyFilters?: {
+      type?: string;
+      vendor_id?: number;
+      startDate?: string;
+      endDate?: string;
+    },
   ) => Promise<void>;
+
+  // Real Inventory Actions
+  updatePhysicalStock: (prodId: number, qty: number) => Promise<void>;
+
   createAdjustment: (data: any) => Promise<boolean>;
   deleteAdjustment: (id: number) => Promise<boolean>;
   refreshGlobalInventory: () => Promise<boolean>;
@@ -62,7 +74,6 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     if (!filters.distributor_id) return;
     set({ isLoading: true });
     try {
-      // Changed from /inventory/${id} to /supervisor/inventory/stock?distributor_id=${id}
       const res = await api.get(`/supervisor/inventory/stock`, {
         params: {
           distributor_id: filters.distributor_id,
@@ -71,11 +82,14 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
           pageSize: limit,
         },
       });
-      // Map 'quantity' back to 'stock'
+      // We map the backend response to maintain the naming expected by components
       const items = res.data.data.map((item: any) => ({
         ...item,
         name: item.product_name,
-        stock: item.quantity,
+        // theoretical_qty is the 'stock' from logic
+        stock: item.theoretical_qty,
+        // physical_qty comes directly from the new DB table
+        physical_qty: item.physical_qty || 0,
       }));
       set({ items, total: res.data.total, isLoading: false });
     } catch {
@@ -83,27 +97,30 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     }
   },
 
-  fetchHistory: async (distId, prodId, reset = false) => {
+  fetchHistory: async (distId, prodId, reset = false, historyFilters = {}) => {
     const pageToFetch = reset ? 1 : get().historyPage;
     set({ isLoadingHistory: true });
     try {
-      // Changed route to /supervisor prefix
       const res = await api.get(
         `/supervisor/inventory/history/${distId}/${prodId}`,
         {
-          params: { page: pageToFetch, pageSize: 10 },
+          params: {
+            page: pageToFetch,
+            pageSize: 10,
+            ...historyFilters, // Inject type, vendor_id, startDate, endDate
+          },
         },
       );
 
       const historyData = res.data.data.map((h: any) => ({
         ...h,
-        qte: h.quantity, // Map quantity back to qte
+        qte: h.quantity,
       }));
 
       set((state) => ({
         history: reset ? historyData : [...state.history, ...historyData],
         historyTotal: res.data.total,
-        historyPage: pageToFetch + 1,
+        historyPage: reset ? 2 : pageToFetch + 1, // Set to 2 if reset
         isLoadingHistory: false,
       }));
     } catch {
@@ -111,17 +128,38 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     }
   },
 
+  updatePhysicalStock: async (prodId: number, qty: number) => {
+    const { filters } = get();
+    try {
+      await api.post("/supervisor/inventory/physical", {
+        distributor_id: parseInt(filters.distributor_id!),
+        product_id: prodId,
+        quantity: qty,
+      });
+      toast.success("Stock physique mis à jour");
+      // Sync local state to update the "Ecart" immediately
+      set((state) => ({
+        items: state.items.map((item) =>
+          item.product_id === prodId ? { ...item, physical_qty: qty } : item,
+        ),
+      }));
+    } catch (err: any) {
+      toast.error(
+        "Erreur de sauvegarde de l'inventaire physique: " +
+          (err.response?.data?.message || "Erreur inconnue"),
+      );
+    }
+  },
+
   createAdjustment: async (data) => {
     try {
-      // Adjusted route and payload structure
       await api.post(`/supervisor/inventory/adjust`, data);
       toast.success("Ajustement de stock enregistré");
       get().fetchInventory();
       return true;
     } catch (error: any) {
       toast.error(
-        `Erreur lors de l'ajustement : ${error.response?.data?.message || "Erreur inconnue"}`,
-        { duration: 10000 },
+        error.response?.data?.message || "Erreur lors de l'ajustement",
       );
       return false;
     }
@@ -129,16 +167,12 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   deleteAdjustment: async (id) => {
     try {
-      // Adjusted route
       await api.delete(`/supervisor/inventory/adjust/${id}`);
       toast.success("Ajustement supprimé");
       get().fetchInventory();
       return true;
     } catch (error: any) {
-      toast.error(
-        `Erreur de suppression : ${error.response?.data?.message || "Erreur inconnue"}`,
-        { duration: 10000 },
-      );
+      toast.error(error.response?.data?.message || "Erreur de suppression");
       return false;
     }
   },
@@ -150,12 +184,10 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       get().fetchInventory();
       return true;
     } catch (error: any) {
-      toast.error(
-        `Erreur de synchronisation : ${error.response?.data?.message || "Erreur inconnue"}`,
-        { duration: 10000 },
-      );
+      toast.error("Erreur de synchronisation");
       return false;
     }
   },
+
   reset: () => set(INITIAL_STATE),
 }));
