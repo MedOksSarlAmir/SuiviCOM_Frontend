@@ -84,7 +84,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          className="text-zinc-400 hover:text-white"
+          className="text-zinc-400 hover:bg-amir-beige hover:text-white"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
