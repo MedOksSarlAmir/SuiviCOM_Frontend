@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useSalesStore } from "@/stores/SaleStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 

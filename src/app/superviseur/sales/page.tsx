@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useMemo } from "react";
-import { useSalesStore } from "@/stores/SaleStore";
-import { ModuleHeader } from "@/components/superviseur/shared/ModuleHeader";
-import { FilterBar } from "@/components/superviseur/shared/FilterBar";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
+import { ModuleHeader } from "@/components/shared/ModuleHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { SalesWeeklyGrid } from "@/components/superviseur/sales/SalesWeeklyGrid";
 import { PaginationControl } from "@/components/ui/pagination-control";
 import { Input } from "@/components/ui/input";

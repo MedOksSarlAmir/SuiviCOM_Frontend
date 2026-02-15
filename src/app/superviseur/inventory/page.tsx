@@ -1,9 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useInventoryStore } from "@/stores/InventoryStore";
-import { useSalesStore } from "@/stores/SaleStore";
-import { ModuleHeader } from "@/components/superviseur/shared/ModuleHeader";
-import { FilterBar } from "@/components/superviseur/shared/FilterBar";
+import { useInventoryStore } from "@/stores/supervisor/InventoryStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
+import { ModuleHeader } from "@/components/shared/ModuleHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { InventoryTable } from "@/components/superviseur/inventory/InventoryTable";
 import { PaginationControl } from "@/components/ui/pagination-control";
 import { Button } from "@/components/ui/button";

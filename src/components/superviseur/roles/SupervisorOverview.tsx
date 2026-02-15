@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect } from "react";
-import { useDashboardStore } from "@/stores/DashboardStore";
+import { useDashboardStore } from "@/stores/supervisor/DashboardStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   TrendingUp,

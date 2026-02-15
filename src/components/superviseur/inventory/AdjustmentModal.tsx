@@ -1,7 +1,7 @@
 // src/components/superviseur/inventory/AdjustmentModal.tsx
 "use client";
 import React, { useState } from "react";
-import { useInventoryStore } from "@/stores/InventoryStore";
+import { useInventoryStore } from "@/stores/supervisor/InventoryStore";
 import {
   Dialog,
   DialogContent,

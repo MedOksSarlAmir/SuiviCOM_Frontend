@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useVisitStore } from "@/stores/VisitStore";
+import { useVisitStore } from "@/stores/supervisor/VisitStore";
 import { Loader2, AlertCircle, RefreshCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 

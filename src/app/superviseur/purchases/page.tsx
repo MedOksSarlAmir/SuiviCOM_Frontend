@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { usePurchaseStore } from "@/stores/PurchaseStore";
-import { ModuleHeader } from "@/components/superviseur/shared/ModuleHeader";
-import { FilterBar } from "@/components/superviseur/shared/FilterBar";
+import { usePurchaseStore } from "@/stores/supervisor/PurchaseStore";
+import { ModuleHeader } from "@/components/shared/ModuleHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { PurchasesTable } from "@/components/superviseur/purchases/PurchasesTable";
 import { PurchaseModal } from "@/components/superviseur/purchases/PurchaseModal";
 import { PaginationControl } from "@/components/ui/pagination-control";

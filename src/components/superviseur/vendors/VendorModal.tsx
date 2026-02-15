@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useVendorStore } from "@/stores/VendorStore";
-import { useSalesStore } from "@/stores/SaleStore";
+import { useVendorStore } from "@/stores/supervisor/VendorStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
 import {
   Dialog,
   DialogContent,

@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   Target,
   Package,
+  MapIcon,
   ClipboardCheck,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ const MENU_CONFIG = {
     { name: "Utilisateurs", href: "/admin/users", icon: Users },
     { name: "Produits", href: "/admin/products", icon: Package },
     { name: "Distributeurs", href: "/admin/distributors", icon: Store },
+    { name: "Geographie", href: "/admin/geography", icon: MapIcon },
   ],
   superviseur: [
     { name: "Vue d'ensemble", href: "/superviseur", icon: LayoutDashboard },

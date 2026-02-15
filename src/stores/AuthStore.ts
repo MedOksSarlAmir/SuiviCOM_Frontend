@@ -1,15 +1,15 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { User } from "@/types/auth";
-import { useSalesStore } from "./SaleStore";
-import { useDashboardStore } from "./DashboardStore";
-import { useInventoryStore } from "./InventoryStore";
-import { usePurchaseStore } from "./PurchaseStore";
-import { useVendorStore } from "./VendorStore";
-import { useVisitStore } from "./VisitStore";
-import { useAdminUserStore } from "./AdminUserStore";
-import { useAdminProductStore } from "./AdminProductStore";
-import { useAdminDistributorStore } from "./AdminDistributorStore"; // Added this
+import { useSalesStore } from "./supervisor/SaleStore";
+import { useDashboardStore } from "./supervisor/DashboardStore";
+import { useInventoryStore } from "./supervisor/InventoryStore";
+import { usePurchaseStore } from "./supervisor/PurchaseStore";
+import { useVendorStore } from "./supervisor/VendorStore";
+import { useVisitStore } from "./supervisor/VisitStore";
+import { useAdminUserStore } from "./admin/UserStore";
+import { useAdminProductStore } from "./admin/ProductStore";
+import { useAdminDistributorStore } from "./admin/DistributorStore"; // Added this
 
 interface AuthStore {
   user: User | null;

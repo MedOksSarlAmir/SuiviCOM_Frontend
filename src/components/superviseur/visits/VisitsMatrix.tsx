@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useCallback } from "react";
-import { useVisitStore } from "@/stores/VisitStore";
+import { useVisitStore } from "@/stores/supervisor/VisitStore";
 import {
   Table,
   TableBody,

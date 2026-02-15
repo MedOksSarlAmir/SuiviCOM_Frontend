@@ -1,6 +1,6 @@
 "use client";
 import React, { memo } from "react";
-import { useVendorStore } from "@/stores/VendorStore";
+import { useVendorStore } from "@/stores/supervisor/VendorStore";
 import {
   Table,
   TableBody,

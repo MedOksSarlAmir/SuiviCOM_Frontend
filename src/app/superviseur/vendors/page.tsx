@@ -1,9 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useVendorStore } from "@/stores/VendorStore";
-import { useSalesStore } from "@/stores/SaleStore";
-import { ModuleHeader } from "@/components/superviseur/shared/ModuleHeader";
-import { FilterBar } from "@/components/superviseur/shared/FilterBar";
+import { useVendorStore } from "@/stores/supervisor/VendorStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
+import { ModuleHeader } from "@/components/shared/ModuleHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { VendorTable } from "@/components/superviseur/vendors/VendorTable";
 import { VendorModal } from "@/components/superviseur/vendors/VendorModal";
 import { Input } from "@/components/ui/input";

@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Tag, Layers } from "lucide-react";
-import { useAdminProductStore } from "@/stores/AdminProductStore";
+import { useAdminProductStore } from "@/stores/admin/ProductStore";
 
 export function ProductFilters() {
   const { filters, setFilters, metadata } = useAdminProductStore();

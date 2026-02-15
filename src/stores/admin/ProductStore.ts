@@ -6,6 +6,7 @@ interface ProductFilters {
   search: string;
   category_id: string;
   type_id: string;
+  order_by: string;
 }
 
 interface AdminProductState {
@@ -31,7 +32,12 @@ const INITIAL_STATE = {
   total: 0,
   page: 1,
   limit: 20,
-  filters: { search: "", category_id: "all", type_id: "all" },
+  filters: {
+    search: "",
+    category_id: "all",
+    type_id: "all",
+    order_by: "date",
+  },
   metadata: { categories: [], types: [] },
   isLoading: false,
 };
@@ -61,8 +67,10 @@ export const useAdminProductStore = create<AdminProductState>((set, get) => ({
           category_id:
             filters.category_id === "all" ? undefined : filters.category_id,
           type_id: filters.type_id === "all" ? undefined : filters.type_id,
+          order_by: filters.order_by,
         },
       });
+
       set({ products: res.data.data, total: res.data.total, isLoading: false });
     } catch {
       set({ isLoading: false });
@@ -86,14 +94,7 @@ export const useAdminProductStore = create<AdminProductState>((set, get) => ({
 
   createProduct: async (data) => {
     try {
-      const payload = {
-        ...data,
-        name: data.name,
-        price_wholesale: data.price_gros,
-        price_retail: data.price_detail,
-        price_supermarket: data.price_superette,
-      };
-      await api.post("/admin/products", payload);
+      await api.post("/admin/products", data);
       toast.success("Produit créé");
       get().fetchProducts();
       return true;
@@ -104,14 +105,7 @@ export const useAdminProductStore = create<AdminProductState>((set, get) => ({
 
   updateProduct: async (id, data) => {
     try {
-      const payload = {
-        ...data,
-        name: data.name,
-        price_wholesale: data.price_gros,
-        price_retail: data.price_detail,
-        price_supermarket: data.price_superette,
-      };
-      await api.put(`/admin/products/${id}`, payload);
+      await api.put(`/admin/products/${id}`, data);
       toast.success("Produit mis à jour");
       get().fetchProducts();
       return true;

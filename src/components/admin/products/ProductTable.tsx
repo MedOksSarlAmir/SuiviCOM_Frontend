@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useAdminProductStore } from "@/stores/AdminProductStore";
+import { useAdminProductStore } from "@/stores/admin/ProductStore";
 import {
   Table,
   TableBody,
@@ -22,7 +22,6 @@ export function ProductTable({ onEdit }: { onEdit: (p: any) => void }) {
         Chargement du catalogue...
       </div>
     );
-
   return (
     <Table>
       <TableHeader className="bg-zinc-50">
@@ -52,7 +51,7 @@ export function ProductTable({ onEdit }: { onEdit: (p: any) => void }) {
               <TableCell className="font-mono text-xs pl-6">{p.code}</TableCell>
               <TableCell className="font-bold">{p.name}</TableCell>
               <TableCell>
-                <Badge variant="secondary">{p.category_name}</Badge>
+                <Badge variant="secondary">{p.category}</Badge>
               </TableCell>
               <TableCell className="font-semibold text-amir-blue">
                 {p.price_factory?.toLocaleString()} DA

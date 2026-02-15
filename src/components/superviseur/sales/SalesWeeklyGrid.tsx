@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useCallback } from "react";
-import { useSalesStore } from "@/stores/SaleStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
 import {
   Table,
   TableBody,

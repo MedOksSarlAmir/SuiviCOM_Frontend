@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { useInventoryStore } from "@/stores/InventoryStore";
-import { useSalesStore } from "@/stores/SaleStore";
+import { useInventoryStore } from "@/stores/supervisor/InventoryStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
 import {
   Dialog,
   DialogContent,

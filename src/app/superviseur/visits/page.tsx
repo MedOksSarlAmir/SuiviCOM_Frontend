@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useVisitStore } from "@/stores/VisitStore";
-import { useSalesStore } from "@/stores/SaleStore";
-import { ModuleHeader } from "@/components/superviseur/shared/ModuleHeader";
-import { FilterBar } from "@/components/superviseur/shared/FilterBar";
+import { useVisitStore } from "@/stores/supervisor/VisitStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
+import { ModuleHeader } from "@/components/shared/ModuleHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { VisitsMatrix } from "@/components/superviseur/visits/VisitsMatrix";
 import { PaginationControl } from "@/components/ui/pagination-control";
 import { Input } from "@/components/ui/input";

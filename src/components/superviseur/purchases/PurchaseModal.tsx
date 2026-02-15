@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
-import { usePurchaseStore } from "@/stores/PurchaseStore";
-import { useSalesStore } from "@/stores/SaleStore";
+import { usePurchaseStore } from "@/stores/supervisor/PurchaseStore";
+import { useSalesStore } from "@/stores/supervisor/SaleStore";
 import {
   Dialog,
   DialogContent,

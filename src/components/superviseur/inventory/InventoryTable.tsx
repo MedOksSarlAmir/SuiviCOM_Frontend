@@ -1,7 +1,7 @@
 // src/components/superviseur/inventory/InventoryTable.tsx
 "use client";
 import React, { useState, memo, useEffect } from "react";
-import { useInventoryStore } from "@/stores/InventoryStore";
+import { useInventoryStore } from "@/stores/supervisor/InventoryStore";
 import {
   Table,
   TableBody,

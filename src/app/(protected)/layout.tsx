@@ -1,11 +1,11 @@
 "use client";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuthStore } from "@/stores/AuthStore";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-export default function AdminLayout({
+export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -27,9 +27,7 @@ export default function AdminLayout({
     );
   }
 
-  if (!isAuthenticated || !user) {
-    return null;
-  }
+  if (!isAuthenticated || !user) return null;
 
   return (
     <div className="flex h-screen w-full bg-zinc-50 overflow-hidden">

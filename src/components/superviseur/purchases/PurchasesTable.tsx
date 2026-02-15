@@ -1,6 +1,6 @@
 "use client";
 import React, { memo, useMemo } from "react";
-import { usePurchaseStore } from "@/stores/PurchaseStore";
+import { usePurchaseStore } from "@/stores/supervisor/PurchaseStore";
 import {
   Table,
   TableBody,

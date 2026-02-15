@@ -10,18 +10,15 @@ export default function SupervisorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // 🔹 Get the hydration flag from the store
   const { isAuthenticated, user, _hasHydrated } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    // 🔹 ONLY redirect if hydration is finished AND the user is actually missing
     if (_hasHydrated && (!isAuthenticated || !user)) {
       router.replace("/login");
     }
   }, [_hasHydrated, isAuthenticated, user, router]);
 
-  // 🔹 While hydration is in progress, show a loader and STAY on the current URL
   if (!_hasHydrated) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-zinc-50">
@@ -30,7 +27,6 @@ export default function SupervisorLayout({
     );
   }
 
-  // If hydration finished but user isn't logged in, don't render the UI
   if (!isAuthenticated || !user) {
     return null;
   }

@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useAdminProductStore } from "@/stores/AdminProductStore";
-import { ModuleHeader } from "@/components/superviseur/shared/ModuleHeader";
-import { FilterBar } from "@/components/superviseur/shared/FilterBar";
+import { useAdminProductStore } from "@/stores/admin/ProductStore";
+import { ModuleHeader } from "@/components/shared/ModuleHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { ProductTable } from "@/components/admin/products/ProductTable";
 import { PaginationControl } from "@/components/ui/pagination-control";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/select";
 import { Package, PackagePlus, Search, Tag, Layers } from "lucide-react";
 import { ProductModal } from "@/components/admin/products/ProductModal";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function AdminProductsPage() {
   const {
-    products,
     total,
     page,
     limit,
@@ -120,6 +121,28 @@ export default function AdminProductsPage() {
           <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 border-b flex justify-between items-center bg-white">
               <h3 className="font-bold text-zinc-700">Catalogue ({total})</h3>
+              <div>
+                <div className="flex items-center gap-3">
+                  <Label>Trier Par: </Label>
+                  <Select
+                    value={`${filters.order_by}`}
+                    onValueChange={(v) => {
+                      setFilters({ order_by: v });
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-[220px] bg-zinc-50">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="name">Nom {"(A->Z)"}</SelectItem>
+                      <SelectItem value="date">
+                        Date de création (Plus Récent)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <Button
                 onClick={() => setModal({ open: true, item: null })}
                 className="bg-amir-blue h-9"

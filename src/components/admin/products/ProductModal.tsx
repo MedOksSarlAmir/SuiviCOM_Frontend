@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useAdminProductStore } from "@/stores/AdminProductStore";
+import { useAdminProductStore } from "@/stores/admin/ProductStore";
 import {
   Dialog,
   DialogContent,
@@ -36,9 +36,9 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
     category_id: product?.category_id?.toString() || "",
     type_id: product?.type_id?.toString() || "",
     price_factory: product?.price_factory || 0,
-    price_gros: product?.price_gros || 0,
-    price_detail: product?.price_detail || 0,
-    price_superette: product?.price_superette || 0,
+    price_wholesale: product?.price_wholesale || 0,
+    price_retail: product?.price_retail || 0,
+    price_supermarket: product?.price_supermarket || 0,
     active: product?.active ?? true,
   });
 
@@ -51,9 +51,9 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       category_id: parseInt(form.category_id),
       type_id: parseInt(form.type_id),
       price_factory: parseFloat(form.price_factory.toString()),
-      price_gros: parseFloat(form.price_gros.toString()),
-      price_detail: parseFloat(form.price_detail.toString()),
-      price_superette: parseFloat(form.price_superette.toString()),
+      price_wholesale: parseFloat(form.price_wholesale.toString()),
+      price_retail: parseFloat(form.price_retail.toString()),
+      price_supermarket: parseFloat(form.price_supermarket.toString()),
     };
 
     const success = product
@@ -64,6 +64,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
     setLoading(false);
   };
 
+  console.log(product)
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -103,9 +104,7 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
                 <Input
                   required
                   value={form.name}
-                  onChange={(e) =>
-                    setForm({ ...form, name: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
               </div>
             </div>
@@ -157,9 +156,9 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-zinc-50 p-4 rounded-lg border border-dashed">
               {[
                 { label: "Usine", key: "price_factory" },
-                { label: "Gros", key: "price_gros" },
-                { label: "Détail", key: "price_detail" },
-                { label: "Supérette", key: "price_superette" },
+                { label: "Gros", key: "price_wholesale" },
+                { label: "Détail", key: "price_retail" },
+                { label: "Supérette", key: "price_supermarket" },
               ].map((item) => (
                 <div key={item.key} className="space-y-2">
                   <Label className="text-[10px] uppercase font-bold">
