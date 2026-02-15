@@ -97,7 +97,9 @@ export default function AdminUsersPage() {
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-bold text-zinc-700">Utilisateurs</h3>
               <Button
-                onClick={() => setModal({ open: true, user: null })}
+                onClick={() => {
+                  setModal({ open: true, user: null });
+                }}
                 className="bg-amir-blue h-9"
               >
                 <UserPlus className="w-4 h-4 mr-2" /> Nouvel Accès

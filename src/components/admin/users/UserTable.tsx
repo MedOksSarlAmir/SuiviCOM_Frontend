@@ -39,7 +39,6 @@ export function UserTable({ onEdit }: { onEdit: (user: any) => void }) {
           <TableHead className="pl-8 h-14">Collaborateur</TableHead>
           <TableHead>Rôle</TableHead>
           <TableHead>Affectation Géo</TableHead>
-          <TableHead>Distributeurs</TableHead>
           <TableHead className="text-right pr-8">Actions</TableHead>
         </TableRow>
       </TableHeader>
@@ -56,10 +55,10 @@ export function UserTable({ onEdit }: { onEdit: (user: any) => void }) {
                 </div>
                 <div className="flex flex-col">
                   <span className="font-bold text-zinc-900 text-sm leading-none mb-1.5">
-                    {u.username}
+                    {u.last_name} {u.first_name}
                   </span>
                   <span className="text-[10px] text-zinc-400 font-black uppercase tracking-wider">
-                    {u.first_name} {u.last_name}
+                    {u.username}
                   </span>
                 </div>
               </div>
@@ -96,21 +95,8 @@ export function UserTable({ onEdit }: { onEdit: (user: any) => void }) {
               )}
             </TableCell>
 
-            <TableCell>
-              <div className="flex flex-wrap gap-1">
-                {u.managed_distributors?.map((d: string) => (
-                  <Badge
-                    key={d}
-                    className="bg-amir-blue/10 text-amir-blue border-none text-[9px] font-black uppercase"
-                  >
-                    {d}
-                  </Badge>
-                ))}
-              </div>
-            </TableCell>
-
             <TableCell className="text-right pr-8">
-              <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex justify-end gap-1">
                 <Button
                   variant="ghost"
                   size="icon"

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React from "react";
 import { useAdminDistributorStore } from "@/stores/admin/DistributorStore";
 import {
   Table,
@@ -11,16 +11,24 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Loader2, Store, User as UserIcon, MapPin } from "lucide-react";
+import {
+  Edit,
+  Loader2,
+  Store,
+  User as UserIcon,
+  MapPin,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function DistributorTable({ onEdit }: { onEdit: (d: any) => void }) {
   const { distributors, isLoading } = useAdminDistributorStore();
+
   if (isLoading)
     return (
       <div className="h-96 flex flex-col items-center justify-center text-zinc-400 bg-white">
         <Loader2 className="animate-spin w-10 h-10 mb-4 text-amir-blue" />
-        <span className="text-xs font-black uppercase tracking-widest text-zinc-400">
+        <span className="text-xs font-black uppercase tracking-widest">
           Lecture des partenaires...
         </span>
       </div>
@@ -32,7 +40,7 @@ export function DistributorTable({ onEdit }: { onEdit: (d: any) => void }) {
         <TableRow>
           <TableHead className="pl-8 h-14">Distributeur</TableHead>
           <TableHead>Localisation</TableHead>
-          <TableHead>Superviseur</TableHead>
+          <TableHead>Superviseurs</TableHead>
           <TableHead>Statut</TableHead>
           <TableHead className="text-right pr-8">Action</TableHead>
         </TableRow>
@@ -61,19 +69,24 @@ export function DistributorTable({ onEdit }: { onEdit: (d: any) => void }) {
               </div>
             </TableCell>
 
+            {/* Multi-Supervisor display */}
             <TableCell>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400">
-                  <UserIcon size={12} />
-                </div>
-                <span
-                  className={cn(
-                    "text-xs font-bold",
-                    d.supervisor_id ? "text-zinc-700" : "text-amber-500 italic",
-                  )}
-                >
-                  {d.supervisor_name}
-                </span>
+              <div className="flex flex-wrap gap-1 max-w-[250px]">
+                {d.supervisors?.length > 0 ? (
+                  d.supervisors.map((s: any) => (
+                    <Badge
+                      key={s.id}
+                      variant="secondary"
+                      className="bg-zinc-100 text-zinc-600 text-[9px] font-bold border-none px-1.5 py-0"
+                    >
+                      <UserIcon className="w-2.5 h-2.5 mr-1" /> {s.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-[10px] text-amber-500 italic font-bold">
+                    Non assigné
+                  </span>
+                )}
               </div>
             </TableCell>
 
