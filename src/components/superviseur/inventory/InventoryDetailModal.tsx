@@ -298,7 +298,7 @@ export function InventoryDetailModal({ product, distributorId, onClose }: any) {
                       {/* Supervisor badge */}
                       {h.supervisor_name && (
                         <Badge className="bg-purple-100 text-purple-800 text-[10px] w-fit">
-                          Supervisor: {h.supervisor_name}
+                          Superviseur: {h.supervisor_name}
                         </Badge>
                       )}
 
