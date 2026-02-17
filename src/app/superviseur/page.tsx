@@ -1,6 +1,6 @@
 "use client";
 import { useAuthStore } from "@/stores/AuthStore";
-import { SupervisorOverview } from "@/components/superviseur/roles/SupervisorOverview";
+import { SupervisorOverview } from "@/components/superviseur/SupervisorOverview";
 
 export default function SupervisorDashboardPage() {
   const { user } = useAuthStore();

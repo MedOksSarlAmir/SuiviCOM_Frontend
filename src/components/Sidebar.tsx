@@ -15,12 +15,12 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
-  CreditCard,
   LogOut,
   Users,
   ShieldCheck,
   Map,
   Store,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -34,7 +34,7 @@ const MENU_CONFIG = {
   superviseur: [
     { name: "Vue d'ensemble", href: "/superviseur", icon: LayoutDashboard },
     { name: "Ventes Vendeurs", href: "/superviseur/sales", icon: ShoppingCart },
-    { name: "Achats Dist.", href: "/superviseur/purchases", icon: CreditCard },
+    { name: "Achats Dist.", href: "/superviseur/purchases", icon: ShoppingBag },
     {
       name: "Visites Terrain",
       href: "/superviseur/visits",

@@ -159,9 +159,9 @@ export default function InventoryPage() {
             </DialogTitle>
             <DialogDescription className="pt-2 text-sm">
               Cette action va recalculer l&apos;intégralité de{" "}
-              <strong>l&apos;inventaire théorique</strong>{" "}
-              en se basant sur l&apos;historique des achats, ventes et
-              ajustements pour <strong>ce distributeur uniquement</strong>.
+              <strong>l&apos;inventaire théorique</strong> en se basant sur
+              l&apos;historique des achats, ventes et ajustements pour{" "}
+              <strong>ce distributeur uniquement</strong>.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
