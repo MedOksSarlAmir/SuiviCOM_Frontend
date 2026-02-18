@@ -10,6 +10,7 @@ import { useVisitStore } from "./supervisor/VisitStore";
 import { useAdminUserStore } from "./admin/UserStore";
 import { useAdminProductStore } from "./admin/ProductStore";
 import { useAdminDistributorStore } from "./admin/DistributorStore"; // Added this
+import { useObjectiveStore } from "./supervisor/ObjectiveStore";
 
 interface AuthStore {
   user: User | null;
@@ -49,6 +50,8 @@ export const useAuthStore = create<AuthStore>()(
         usePurchaseStore.getState().reset();
         useVendorStore.getState().reset();
         useVisitStore.getState().reset();
+        useObjectiveStore.getState().resetMatrix();
+
         useAdminUserStore.getState().reset();
         useAdminProductStore.getState().reset();
         useAdminDistributorStore.getState().reset(); // Added reset
